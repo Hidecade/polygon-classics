@@ -14,12 +14,12 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 </head>
 <body>
-<button id="brand-splash" aria-label="タイトルを閉じてゲーム選択へ"><span class="splash-brand">POLYGON CLASSICS<small>POLYGON ARCADE PLAYER · WEB 20261001.4</small></span></button>
+<button id="brand-splash" aria-label="タイトルを閉じてゲーム選択へ"><span class="splash-brand">POLYGON CLASSICS<small>POLYGON ARCADE PLAYER · WEB 20261001.5</small></span></button>
 <main>
-<header><a class="brand" href="#" id="home" aria-label="起動メニューへ"><span class="brand-symbol" aria-hidden="true">⬡</span><h1>POLYGON CLASSICS</h1></a><span class="eyebrow">WEB EDITION · 20261001.4</span></header>
+<header><a class="brand" href="#" id="home" aria-label="起動メニューへ"><span class="brand-symbol" aria-hidden="true">⬡</span><h1>POLYGON CLASSICS</h1></a><span class="eyebrow">WEB EDITION · 20261001.5</span></header>
 <section id="boot-error" role="alert" tabindex="-1" hidden><strong>ゲームを起動できませんでした</strong><p id="boot-error-message"></p></section>
 <section id="menu" class="native-configuration" aria-label="ゲーム選択と起動設定">
- <div class="native-title"><img id="title-logo" alt="" hidden><h2 id="title-name">POLYGON CLASSICS</h2><span class="eyebrow">WEB EDITION · 20261001.4</span><span class="configuration-caption">SYSTEM CONFIGURATION</span></div>
+ <div class="native-title"><img id="title-logo" alt="" hidden><h2 id="title-name">POLYGON CLASSICS</h2><span class="eyebrow">WEB EDITION · 20261001.5</span><span class="configuration-caption">SYSTEM CONFIGURATION</span></div>
  <div class="native-columns">
   <nav class="native-tabs" aria-label="設定"><p class="eyebrow">SETTINGS</p><button id="display-tab" class="active" aria-current="page">DISPLAY</button><button id="video-menu">VIDEO OPTIONS</button><button id="input-menu">CONTROLS</button><button id="ranking-menu" hidden>HIGH SCORE</button></nav>
   <div class="native-panel"><div class="panel-heading"><span>VIDEO</span><span>01 / 03</span></div>
@@ -42,12 +42,13 @@
 <section class="screen" id="screen" aria-label="ゲーム画面" hidden>
   <iframe id="game" title="ゲーム画面" src="player.html" allow="autoplay; fullscreen; gamepad" allowfullscreen></iframe>
   <div id="stick-surface" hidden aria-label="タッチスティック"><div id="stick-ring" hidden><i></i></div></div>
+  <button id="pause-toggle" hidden aria-label="ポーズメニュー" aria-expanded="false" aria-controls="pause-panel">☰</button>
+  <section id="pause-panel" hidden aria-label="ポーズメニュー"><h2>PAUSED</h2><button id="resume" class="primary">▶ 再開</button><div class="pause-actions"><button data-menu-key="Digit5">コイン</button><button data-menu-key="Digit1">スタート</button><button data-menu-key="Enter">OK</button></div><p>コイン・スタート・OKを押すと再開します。</p></section>
   <div id="cover"><span class="eyebrow">SYSTEM / LOADING</span><h2>LOADING...</h2><p>基板をチェックしています…</p></div>
 </section>
 <div id="game-tools" hidden><button id="stop">ゲームを終了してメニューへ</button><button id="fullscreen">全画面</button><button id="recenter-motion">中央補正</button></div>
 <section id="touch-controls" aria-label="タッチ操作" hidden>
-  <div class="touch-top"><button data-key="Digit5">コイン</button><button data-key="Digit1">スタート</button><button data-key="Enter">OK</button><span>横向きでプレイ</span></div>
-  <div class="touch-main" id="shoot-controls"><div class="dpad" aria-label="照準"><button data-key="ArrowUp" aria-label="照準を上へ">▲</button><button data-key="ArrowLeft" aria-label="照準を左へ">◀</button><button data-key="ArrowDown" aria-label="照準を下へ">▼</button><button data-key="ArrowRight" aria-label="照準を右へ">▶</button></div><button data-key="AltLeft" id="secondary-fire" hidden>BOMB</button><button class="fire" data-key="ControlLeft">FIRE<small>押し続けて連射</small></button></div>
+  <div class="touch-main" id="shoot-controls"><div class="dpad" aria-label="照準"><button data-key="ArrowUp" aria-label="照準を上へ">▲</button><button data-key="ArrowLeft" aria-label="照準を左へ">◀</button><button data-key="ArrowDown" aria-label="照準を下へ">▼</button><button data-key="ArrowRight" aria-label="照準を右へ">▶</button></div><button data-key="AltLeft" id="secondary-fire" hidden>BOMB</button><button id="primary-fire" class="fire" data-key="ControlLeft">FIRE<small>押し続けて連射</small></button></div>
 <div id="race-controls" hidden>
 <div class="race-extras"><button data-key="Space" data-race="srallyc">HANDBRAKE</button>
 <button data-key="KeyD" data-race="vr">VR1</button><button data-key="KeyF" data-race="vr">VR2</button><button data-key="KeyG" data-race="vr">VR3</button><button data-key="KeyH" data-race="vr">VR4</button>

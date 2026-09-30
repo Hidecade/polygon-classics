@@ -5,13 +5,14 @@ import {HOSTED} from './deployment.mjs';
 import {loadHostedCore} from './site-core.mjs';
 const canvas = document.getElementById('canvas');
 const send = (type,message) => parent.postMessage({type,message}, location.origin);
-let started = false;
+let started = false, paused=false;
 const keys = {Digit5:['5',53],Digit1:['1',49],ArrowUp:['ArrowUp',38],ArrowDown:['ArrowDown',40],ArrowLeft:['ArrowLeft',37],ArrowRight:['ArrowRight',39],ControlLeft:['Control',17],AltLeft:['Alt',18],Space:[' ',32],KeyA:['a',65],KeyS:['s',83],KeyD:['d',68],KeyF:['f',70],KeyG:['g',71],KeyH:['h',72],KeyJ:['j',74],KeyZ:['z',90],KeyX:['x',88],Enter:['Enter',13]};
 const pressed = new Set();
 window.addEventListener('error', event => { send('log',event.error?.stack || event.message); send('error', event.message); });
 window.addEventListener('unhandledrejection', event => { send('log',event.reason?.stack || String(event.reason)); send('error', String(event.reason)); });
 canvas.addEventListener('contextmenu', event=>event.preventDefault());
 function activate() {
+  if(paused)return;
   canvas.focus();
   window.jsmame_web_audio?.get_context()?.resume().catch(error=>send('log',`音声: ${error.message}`));
 }
@@ -23,6 +24,13 @@ canvas.addEventListener('keydown', event=>{
 });
 window.addEventListener('message', async event => {
   if(event.origin !== location.origin || event.source !== parent || !event.data) return;
+  if(event.data.type==='pause'){
+    if(!started||typeof event.data.paused!=='boolean'||event.data.paused===paused)return;
+    paused=event.data.paused;
+    if(paused){document.exitPointerLock?.();window.Module.pauseMainLoop();window.jsmame_web_audio?.get_context()?.suspend().catch(()=>{});}
+    else{window.Module.resumeMainLoop();activate();}
+    return;
+  }
   if(event.data.type==='analog'){
     const d=event.data;if(!started || ![d.x,d.y,d.roll].every(Number.isFinite))return;
     window.polygonInput={active:d.active===true,x:Math.max(0,Math.min(1,d.x)),y:Math.max(0,Math.min(1,d.y)),fire:d.fire===true,ground:d.ground===true,brake:d.brake===true};
@@ -80,6 +88,7 @@ window.addEventListener('message', async event => {
       if(family==='starblade')window.starbladeWebGPU=renderer;else window.polygonWebGPU=renderer;
     } else {send('log','CPU描画を選択しました');send('renderer','CPU描画（設定で選択）');}
     window.Module = {
+      noExitRuntime: true, // Pausing the main loop must not tear down the emulator.
       canvas,
       ...(wasmBinary ? {instantiateWasm(imports,success){
         WebAssembly.instantiate(wasmBinary,imports).then(({instance,module})=>{

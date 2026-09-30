@@ -26,3 +26,11 @@ body:not(.playing){overflow-y:auto;touch-action:pan-y}
  body:not(.playing) main{padding:8px 14px}.native-title{height:58px;margin-bottom:8px;padding-bottom:16px}.native-title h2{font-size:22px;margin:0}.native-title img{max-width:280px}.native-title>.eyebrow{display:none}.configuration-caption{font-size:9px}
  .native-configuration{padding:10px}.native-columns{grid-template-columns:105px minmax(0,1fr);min-height:0;gap:10px}.native-side{display:none}.native-tabs{padding:8px;gap:8px}.native-panel{padding:10px}.panel-heading{margin-bottom:8px;font-size:12px}.controls{gap:6px}.controls>label,.folder-row{grid-template-columns:100px minmax(0,1fr);gap:10px}.controls select,.controls output{min-height:36px;padding:8px}#display-warning{margin:2px 0}.native-actions{position:sticky;bottom:0;z-index:3;background:#091318;padding:8px 0;margin-top:8px}.native-actions #play{min-width:160px}header h1{font-size:14px}
 }
+
+/* Transparent play controls; pause tools stay within the fullscreen surface. */
+body.playing #touch-controls,body.expanded #touch-controls,#screen #touch-controls{position:absolute;inset:0;z-index:4;margin:0;padding:60px max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));background:transparent;pointer-events:none;display:flex;flex-direction:column;justify-content:flex-end}
+#screen #touch-controls button{pointer-events:auto}#screen #pause-toggle{position:absolute;top:max(8px,env(safe-area-inset-top));left:max(8px,env(safe-area-inset-left));z-index:6;width:48px;height:48px;padding:0;font-size:30px;line-height:1;background:transparent;border:0;color:#5cf2fa;text-shadow:0 1px 3px #000}
+#pause-panel{position:absolute;z-index:5;top:50%;left:50%;transform:translate(-50%,-50%);width:min(460px,calc(100% - 100px));max-height:calc(100% - 24px);overflow:auto;padding:16px;background:#091318f5;border:1px solid #14617a;text-align:center}
+#pause-panel h2{margin:0 0 12px}#pause-panel p{font-size:11px;color:#85abb8}.pause-actions{display:flex;justify-content:center;gap:8px;margin-top:12px}
+body.expanded #game-tools,#screen #game-tools{position:static;display:flex;justify-content:center;gap:8px;margin:12px 0 0;flex-wrap:wrap}#screen #game-tools button{font-size:11px}
+#stick-surface{clip-path:polygon(72px 0,100% 0,100% 100%,0 100%,0 72px,72px 72px)}

@@ -12,6 +12,7 @@ try { settings = {...defaults,...JSON.parse(localStorage.getItem('starblade.menu
 if(!Object.hasOwn(DISPLAY_MODES,settings.display))settings.display='FHD';
 if(!['Solid','Wireframe'].includes(settings.renderStyle))settings.renderStyle=defaults.renderStyle;
 let coreReady=false, playerReady=false, busy=false, boardLoading=false, localReady=false, generation=0;
+let paused=false;
 let romLibrary=indexRomFolder([]);
 let runtime={native:false,platform:'web',running:false};
 const log=message=>{$('log').textContent=($('log').textContent+message+'\n').slice(-24000);};
@@ -24,6 +25,9 @@ function updateGameList(){
  $('game-choice').hidden=!systems.length;
 }
 updateGameList();
+// Keep overlays inside the fullscreen element.
+$('pause-panel').append($('game-tools'));
+$('screen').append($('touch-controls'));
 function refresh(){
  const width=displayWidth(settings.display);
  $('screen').style.aspectRatio=`${width}/1080`;$('game').style.width=`${width}px`;
@@ -56,7 +60,11 @@ function refresh(){
  $('rom').disabled=busy || native;$('choose-folder').disabled=busy || native;
  $('system').disabled=!game || busy || native;
  $('target').disabled=busy;
- $('touch-controls').hidden=!busy || boardLoading || native || !settings.touch;
+ $('pause-toggle').hidden=!busy||boardLoading||native;
+ $('pause-toggle').setAttribute('aria-expanded',String(paused));
+ $('pause-panel').hidden=!paused;
+ $('touch-controls').hidden=!busy || paused || boardLoading || native || !settings.touch;
+ $('primary-fire').hidden=mobile&&settings.touch&&['starblad','starbladj'].includes(selected);
  $('setting-renderer').disabled=busy || (native && runtime.platform!=='win32');
  $('setting-render-style').disabled=!native;
  $('setting-glow').disabled=!native;
@@ -75,7 +83,7 @@ for(const kind of ['video','input']){
  $(`${kind}-dialog`).addEventListener('close',loadSettings);
 }
 function resetPlayer(){generation++;playerReady=false;$('game').src='player.html';}
-function menu(){releaseAll();busy=false;boardLoading=false;$('screen').hidden=true;$('game-tools').hidden=true;$('menu').hidden=false;$('setup').hidden=false;$('selection').hidden=false;$('ended').hidden=true;document.body.classList.remove('playing','expanded');$('screen').classList.remove('expanded');refresh();}
+function menu(){releaseAll();paused=false;busy=false;boardLoading=false;$('screen').hidden=true;$('game-tools').hidden=true;$('menu').hidden=false;$('setup').hidden=false;$('selection').hidden=false;$('ended').hidden=true;document.body.classList.remove('playing','expanded');$('screen').classList.remove('expanded');refresh();}
 function stop(){if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});resetPlayer();menu();status('終了しました。もう一度起動できます。');}
 $('stop').onclick=stop;
 $('home').onclick=event=>{event.preventDefault();if(busy)stop();else menu();};
@@ -85,6 +93,19 @@ async function fullscreen(){
  try{if(settings.touch){document.body.classList.toggle('expanded');$('screen').classList.toggle('expanded');return;}if(document.fullscreenElement)await document.exitFullscreen();else if($('screen').requestFullscreen)await $('screen').requestFullscreen();else{document.body.classList.toggle('expanded');$('screen').classList.toggle('expanded');}}catch{document.body.classList.toggle('expanded');$('screen').classList.toggle('expanded');}
 }
 $('fullscreen').onclick=fullscreen;
+function setPaused(value){
+ if(!busy||boardLoading)return;
+ paused=value;releaseAll();mobileInput.reset();
+ $('game').contentWindow.postMessage({type:'pause',paused},location.origin);
+ refresh();
+ if(paused)$('resume').focus();else $('game').focus();
+}
+$('pause-toggle').onclick=()=>setPaused(!paused);
+$('resume').onclick=()=>setPaused(false);
+for(const button of document.querySelectorAll('[data-menu-key]'))button.onclick=()=>{
+ const run=generation,code=button.dataset.menuKey;setPaused(false);input(code,true);
+ setTimeout(()=>{if(run===generation)input(code,false);},180);
+};
 $('target').onchange=()=>{status($('target').value==='native'?'保存済みROMを使ってアプリを起動します。':'ROMフォルダを選択するか、保存済みROMで開始してください。');refresh();};
 $('choose-folder').onclick=()=>{
  if(!('webkitdirectory' in $('rom'))){showFailure('このブラウザはフォルダ選択に対応していません。対応する最新版のブラウザで開いてください。');return;}
@@ -128,7 +149,7 @@ async function startWeb(local){
    roms=await Promise.all(files.map(async file=>({name:file.name.toLowerCase(),data:await file.arrayBuffer()})));
   }
   if(run!==generation)return;
-  $('game').contentWindow.postMessage({type:'boot',system:$('system').value,roms,renderer:settings.renderer,aim:settings.aim,display:settings.display},location.origin,roms.map(rom=>rom.data));
+  $('game').contentWindow.postMessage({type:'boot',system:$('system').value,roms,renderer:settings.renderer,aim:mobile&&settings.touch?'Keyboard':settings.aim,display:settings.display},location.origin,roms.map(rom=>rom.data));
  }catch(error){if(run!==generation)return;resetPlayer();menu();status(error.message);log(error.message);showFailure(error.message);}
 }
 $('start').onclick=()=>startWeb(false);$('local').onclick=()=>startWeb(true);
@@ -169,7 +190,7 @@ for(const button of document.querySelectorAll('[data-key]')){
 }
 window.addEventListener('blur',()=>setTimeout(()=>{if(!document.hasFocus())releaseAll();},0));document.addEventListener('visibilitychange',()=>{if(document.hidden)releaseAll();});
 async function checkRuntime(initial=false){try{const response=await fetch('/api/runtime');if(!response.ok)return;const before=runtime.running;runtime=await response.json();if(mobile)runtime.native=false;$('target').querySelector('[value=native]').disabled=!runtime.native;if(initial && runtime.native)$('target').value='native';if(runtime.error)status(runtime.error);else if(before && !runtime.running)status('アプリを終了しました。もう一度起動できます。');}catch{}refresh();}
-const mobileInput=setupMobileInput({getState:()=>({busy:busy&&!boardLoading,settings,system:$('system').value,race:racing($('system').value)}),send:data=>$('game').contentWindow.postMessage(data,location.origin),status:message=>{$('motion-status').textContent=message;}});
+const mobileInput=setupMobileInput({getState:()=>({busy:busy&&!boardLoading&&!paused,settings,system:$('system').value,race:racing($('system').value)}),send:data=>$('game').contentWindow.postMessage(data,location.origin),status:message=>{$('motion-status').textContent=message;}});
 let localCheck=0;
 async function checkLocal(){const ticket=++localCheck;localReady=false;refresh();if(!HOSTED && $('system').value)try{const response=await fetch(`/local-rom/${$('system').value}.zip`,{method:'HEAD'});if(ticket===localCheck)localReady=response.ok;}catch{}refresh();}
 $('system').onchange=()=>{checkLocal();$('boot-error').hidden=true;describeFolder();};

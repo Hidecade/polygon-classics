@@ -1,6 +1,6 @@
 # Polygon Classics
 
-Web arcade emulator · 20261001.4
+Web arcade emulator · 20261001.5
 
 **Play:** https://hidecade.github.io/polygon-classics/
 
