@@ -1,4 +1,4 @@
-import {indexRomFolder,selectGameRoms} from './rom-library.mjs';
+import {indexRomFolder,selectGameRoms,availableGames} from './rom-library.mjs';
 import {setupMobileInput} from './mobile-input.mjs';
 import {validateRoms,GAMES,racing,displayWidth,DISPLAY_MODES} from './config.mjs';
 import {HOSTED} from './deployment.mjs';
@@ -17,38 +17,44 @@ let runtime={native:false,platform:'web',running:false};
 const log=message=>{$('log').textContent=($('log').textContent+message+'\n').slice(-24000);};
 const status=message=>{$('status').textContent=message;};
 new ResizeObserver(([entry])=>{const {width,height}=entry.contentRect;$('screen').style.setProperty('--game-scale',Math.min(width/displayWidth(settings.display),height/1080));}).observe($('screen'));
-for(const [value,game] of Object.entries(GAMES)){const option=document.createElement('option');option.value=value;option.textContent=game.title;if(value==='starblad')$('system').replaceChildren();$('system').append(option);}
+function updateGameList(){
+ const previous=$('system').value,systems=availableGames(romLibrary);
+ $('system').replaceChildren(...systems.map(system=>new Option(GAMES[system].title,system)));
+ if(systems.includes(previous))$('system').value=previous;
+ $('game-choice').hidden=!systems.length;
+}
+updateGameList();
 function refresh(){
  const width=displayWidth(settings.display);
  $('screen').style.aspectRatio=`${width}/1080`;$('game').style.width=`${width}px`;
  $('setting-display').value=settings.display;$('setting-display').disabled=busy;
  $('display-resolution').textContent=`${width} × 1080 / ${{Original:"4:3",FHD:"16:9",UltraWide:"43:18"}[settings.display]}`;
  $('display-warning').hidden=settings.display!=="UltraWide";
- const selected=$('system').value,game=GAMES[selected],race=racing(selected);
- const choice=selectGameRoms(romLibrary,selected),selectedReady=choice.hasGame&&!choice.duplicates.length;
- $('rom-hint').textContent='関連ZIP: '+game.roms.map(n=>n+'.zip').join(' / ');
+ const selected=$('system').value,game=GAMES[selected],race=!!game&&racing(selected);
+ const choice=game?selectGameRoms(romLibrary,selected):{files:[],hasGame:false,duplicates:[]},selectedReady=choice.hasGame&&!choice.duplicates.length;
+ $('rom-hint').textContent=game?'関連ZIP: '+game.roms.map(n=>n+'.zip').join(' / '):'';
  $('folder-summary').textContent=romLibrary.zipCount?`${romLibrary.folder||'選択フォルダ'} · ZIP ${romLibrary.zipCount}件 / このゲーム ${choice.files.length}件`:'フォルダ未選択';
- const logo=game.family==='starblade';
+ const logo=game?.family==='starblade';
  $('title-logo').hidden=!logo;$('title-name').hidden=logo;
- $('title-logo').src=selected==='solvalou'?'solvalou-loading-logo.png':'starblade-loading-logo.png';
- $('title-logo').alt=game.title;$('title-name').textContent=game.title;
- $('selected-game').textContent=game.title;
- $('selected-family').textContent={starblade:'NAMCO SYSTEM 21',model1:'SEGA MODEL 1',model2:'SEGA MODEL 2',system22:'NAMCO SYSTEM 22'}[game.family];
+ if(logo)$('title-logo').src=selected==='solvalou'?'solvalou-loading-logo.png':'starblade-loading-logo.png';else $('title-logo').removeAttribute('src');
+ $('title-logo').alt=game?.title||'';$('title-name').textContent=game?.title||'POLYGON CLASSICS';
+ $('selected-game').textContent=game?.title||'ROMフォルダを選択';
+ $('selected-family').textContent={starblade:'NAMCO SYSTEM 21',model1:'SEGA MODEL 1',model2:'SEGA MODEL 2',system22:'NAMCO SYSTEM 22'}[game?.family]||'';
  $('shoot-controls').hidden=race;$('race-controls').hidden=!race;$('secondary-fire').hidden=selected!=='solvalou';
- for(const button of document.querySelectorAll('[data-race]'))button.hidden=!button.dataset.race.split(',').some(key=>key===selected||key===game.family);
- $('game').title=game.title+'エミュレータ';$('game-label').textContent=game.title;
+ for(const button of document.querySelectorAll('[data-race]'))button.hidden=!button.dataset.race.split(',').some(key=>key===selected||key===game?.family);
+ $('game').title=game?game.title+'エミュレータ':'ゲーム画面';$('game-label').textContent=game?.title||'POLYGON CLASSICS';
  $('motion-options').hidden=!race;$('recenter-motion').hidden=!race;
  const native=$('target').value==='native';
  $('ranking-menu').hidden=HOSTED || !native || !runtime.native;
  $('ranking-menu').disabled=busy || runtime.running;
  $('target').closest('label').hidden=HOSTED;
- $('play').disabled=busy || (native ? !runtime.native || runtime.running : !coreReady || !playerReady || (!localReady && !selectedReady));
+ $('play').disabled=!game || busy || (native ? !runtime.native || runtime.running : !coreReady || !playerReady || (!localReady && !selectedReady));
  $('start').disabled=busy || !coreReady || !playerReady || !selectedReady;
  $('local').disabled=busy || !coreReady || !playerReady;
  $('local').hidden=!localReady || native;
  $('start').hidden=native;
  $('rom').disabled=busy || native;$('choose-folder').disabled=busy || native;
- $('system').disabled=busy || native;
+ $('system').disabled=!game || busy || native;
  $('target').disabled=busy;
  $('touch-controls').hidden=!busy || boardLoading || native || !settings.touch;
  $('setting-renderer').disabled=busy || (native && runtime.platform!=='win32');
@@ -57,7 +63,7 @@ function refresh(){
  $('setting-fps').disabled=!native;
  $('setting-aim').disabled=!native && !['starblad','starbladj'].includes(selected);
  $('video-note').textContent=native ? 'UIは4:3、ゲーム画面は1920×1080を維持します。GPU描画はWindows版で利用できます。' : 'Web版はWebGPUで描画します。非対応環境ではCPUへ自動切替します。縦横比を維持して、選択した表示範囲で描画します。UI発光・速度表示の切替はネイティブ版の設定です。';
- $('control-summary').textContent=race ? '5 コイン / 1 スタート / ← → ハンドル / ↑ アクセル / ↓ ブレーキ（RR系はアクセルで決定）' : settings.touch ? '画面をドラッグして照準・自動射撃。離すと中央に戻ります。SOLVALOUは2本目の指で対地射撃。' : settings.aim==='Mouse' && (native || ['starblad','starbladj'].includes(selected)) ? '5 コイン / 1 スタート / マウス 照準 / 左クリック 発射' : '5 コイン / 1 スタート / 矢印キー 照準 / Ctrl 発射';
+ $('control-summary').textContent=!game?'ROMフォルダを選択すると、利用可能なゲームが表示されます。':race ? '5 コイン / 1 スタート / ← → ハンドル / ↑ アクセル / ↓ ブレーキ' : settings.touch ? '画面をドラッグして照準・自動射撃。離すと中央に戻ります。対応ゲームでは2本目の指で追加射撃。' : settings.aim==='Mouse' && (native || ['starblad','starbladj'].includes(selected)) ? '5 コイン / 1 スタート / マウス 照準 / 左クリック 発射' : '5 コイン / 1 スタート / 矢印キー 照準 / Ctrl 発射';
 }
 $('setting-display').onchange=()=>{settings.display=$('setting-display').value;try{localStorage.setItem('starblade.menu',JSON.stringify(settings));}catch{}refresh();};
 function loadSettings(){for(const name of ['fullscreen','fps','touch','tilt','level','haptics'])$(`setting-${name}`).checked=!!settings[name];for(const name of ['renderer','render-style','glow','aim'])$(`setting-${name}`).value=settings[name==='render-style'?'renderStyle':name];}
@@ -85,18 +91,19 @@ $('choose-folder').onclick=()=>{
  $('rom').click();
 };
 function describeFolder(){
+ if(!$('system').value){status(romLibrary.zipCount?'このフォルダに対応するゲームのROM ZIPが見つかりません。':'ROM ZIPが入ったフォルダを選択してください。');return;}
  const choice=selectGameRoms(romLibrary,$('system').value);
  if(!romLibrary.zipCount){status('ROM ZIPが入ったフォルダを選択してください。');return;}
  if(choice.duplicates.length){status('同名のZIPが複数あります: '+choice.duplicates.join(' / ')+'。重複を除いたフォルダを選んでください。');return;}
  if(!choice.hasGame){status($('system').value+'.zip が選択フォルダにありません。');return;}
  status('読込対象: '+choice.files.map(f=>f.name).join(' / ')+(choice.missing.length?'。関連ZIPが見つかりません: '+choice.missing.join(' / ')+'（統合ROMの場合は不要なことがあります）。':'。ゲーム開始を押してください。'));
 }
-$('rom').onchange=()=>{romLibrary=indexRomFolder($('rom').files);$('boot-error').hidden=true;refresh();describeFolder();};
+$('rom').onchange=()=>{romLibrary=indexRomFolder($('rom').files);updateGameList();localReady=false;$('boot-error').hidden=true;refresh();describeFolder();};
 function showFailure(message){
  const text=$('log').textContent;
  let detail=String(message||'起動に失敗しました。');
  if(/NOT FOUND|Required files are missing/.test(text)){
-  const missing=selectGameRoms(romLibrary,$('system').value).missing;
+  const missing=$('system').value?selectGameRoms(romLibrary,$('system').value).missing:[];
   const names=[...new Set([...text.matchAll(/^(.+?) NOT FOUND/gm)].map(m=>m[1]))];
   detail='必要なROMが不足しています: '+names.join(' / ')+'. '+(missing.length?'同じROMフォルダに '+missing.join(' / ')+' を追加し、フォルダを選び直してください。':'ZIPの内容を起動ログで確認してください。');
  }
@@ -164,7 +171,7 @@ window.addEventListener('blur',()=>setTimeout(()=>{if(!document.hasFocus())relea
 async function checkRuntime(initial=false){try{const response=await fetch('/api/runtime');if(!response.ok)return;const before=runtime.running;runtime=await response.json();if(mobile)runtime.native=false;$('target').querySelector('[value=native]').disabled=!runtime.native;if(initial && runtime.native)$('target').value='native';if(runtime.error)status(runtime.error);else if(before && !runtime.running)status('アプリを終了しました。もう一度起動できます。');}catch{}refresh();}
 const mobileInput=setupMobileInput({getState:()=>({busy:busy&&!boardLoading,settings,system:$('system').value,race:racing($('system').value)}),send:data=>$('game').contentWindow.postMessage(data,location.origin),status:message=>{$('motion-status').textContent=message;}});
 let localCheck=0;
-async function checkLocal(){const ticket=++localCheck;localReady=false;refresh();if(!HOSTED)try{const response=await fetch(`/local-rom/${$('system').value}.zip`,{method:'HEAD'});if(ticket===localCheck)localReady=response.ok;}catch{}refresh();}
+async function checkLocal(){const ticket=++localCheck;localReady=false;refresh();if(!HOSTED && $('system').value)try{const response=await fetch(`/local-rom/${$('system').value}.zip`,{method:'HEAD'});if(ticket===localCheck)localReady=response.ok;}catch{}refresh();}
 $('system').onchange=()=>{checkLocal();$('boot-error').hidden=true;describeFolder();};
 async function checkCore(){try{for(const path of ['core/starblade.js',HOSTED?'core/manifest.json':'core/starblade.wasm']){if(!(await fetch(path,{method:'HEAD',cache:'no-store'})).ok)throw new Error('Web版コアが未ビルドです。');}coreReady=true;}catch(error){log(error.message);}}
 await Promise.all([HOSTED?Promise.resolve():checkRuntime(true),checkCore(),checkLocal()]);

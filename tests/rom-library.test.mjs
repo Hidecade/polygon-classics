@@ -1,5 +1,5 @@
 import {test} from 'node:test';import assert from 'node:assert/strict';
-import {indexRomFolder,selectGameRoms} from '../docs/rom-library.mjs';
+import {indexRomFolder,selectGameRoms,availableGames} from '../docs/rom-library.mjs';
 const file=(name,path='roms/'+name)=>({name,webkitRelativePath:path,size:12,arrayBuffer(){throw Error('Indexing must not read file contents');}});
 test('folder scan finds nested, case-insensitive game and BIOS ZIPs without reading data',()=>{
  const lib=indexRomFolder([file('RAVERACE.ZIP'),file('NAMCOC71.ZIP','roms/bios/NAMCOC71.ZIP'),file('namcoc74.zip'),file('photo.png'),file('other.zip')]);
@@ -11,4 +11,10 @@ test('changing game reuses the folder but never loads unrelated games',()=>{
 });
 test('missing game and duplicated ZIP names are reported explicitly',()=>{
  const lib=indexRomFolder([file('raverace.zip'),file('namcoc71.zip'),file('NAMCOC71.ZIP','roms/old/NAMCOC71.ZIP')]);const s=selectGameRoms(lib,'raverace');assert.deepEqual(s.duplicates,['namcoc71.zip']);assert.deepEqual(s.missing,['namcoc74.zip']);assert.equal(selectGameRoms(lib,'vr').hasGame,false);
+});
+
+test('game menu stays empty until matching game ZIPs are selected',()=>{
+ assert.deepEqual(availableGames(indexRomFolder([])),[]);
+ assert.deepEqual(availableGames(indexRomFolder([file('namcoc71.zip'),file('notes.txt'),file('unknown.zip')])),[]);
+ assert.deepEqual(availableGames(indexRomFolder([file('RAVERACE.ZIP'),file('vr.zip'),file('namcoc71.zip')])),['vr','raverace']);
 });

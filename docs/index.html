@@ -9,22 +9,22 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
 <meta name="apple-mobile-web-app-title" content="Polygon Classics">
-<meta name="description" content="ポリゴン初期の名作8タイトルをブラウザでプレイ。1920×1080のワイド表示とタッチ操作に対応。ROMは端末内で選択します。">
+<meta name="description" content="手元のROMをブラウザで読み込むアーケードエミュレータ。GPU描画、ワイド表示、タッチ操作に対応。ROMは同梱しません。">
 <link rel="stylesheet" href="style.css">
 <link rel="icon" type="image/png" href="icon-192.png">
 </head>
 <body>
-<button id="brand-splash" aria-label="タイトルを閉じてゲーム選択へ"><span class="splash-brand">POLYGON CLASSICS<small>POLYGON ARCADE PLAYER · WEB 20261001.3</small></span></button>
+<button id="brand-splash" aria-label="タイトルを閉じてゲーム選択へ"><span class="splash-brand">POLYGON CLASSICS<small>POLYGON ARCADE PLAYER · WEB 20261001.4</small></span></button>
 <main>
-<header><a class="brand" href="#" id="home" aria-label="起動メニューへ"><span class="brand-symbol" aria-hidden="true">⬡</span><h1>POLYGON CLASSICS</h1></a><span class="eyebrow">WEB EDITION · 20261001.3</span></header>
+<header><a class="brand" href="#" id="home" aria-label="起動メニューへ"><span class="brand-symbol" aria-hidden="true">⬡</span><h1>POLYGON CLASSICS</h1></a><span class="eyebrow">WEB EDITION · 20261001.4</span></header>
 <section id="boot-error" role="alert" tabindex="-1" hidden><strong>ゲームを起動できませんでした</strong><p id="boot-error-message"></p></section>
 <section id="menu" class="native-configuration" aria-label="ゲーム選択と起動設定">
- <div class="native-title"><img id="title-logo" src="starblade-loading-logo.png" alt="STAR BLADE"><h2 id="title-name" hidden></h2><span class="eyebrow">WEB EDITION · 20261001.3</span><span class="configuration-caption">SYSTEM CONFIGURATION</span></div>
+ <div class="native-title"><img id="title-logo" alt="" hidden><h2 id="title-name">POLYGON CLASSICS</h2><span class="eyebrow">WEB EDITION · 20261001.4</span><span class="configuration-caption">SYSTEM CONFIGURATION</span></div>
  <div class="native-columns">
   <nav class="native-tabs" aria-label="設定"><p class="eyebrow">SETTINGS</p><button id="display-tab" class="active" aria-current="page">DISPLAY</button><button id="video-menu">VIDEO OPTIONS</button><button id="input-menu">CONTROLS</button><button id="ranking-menu" hidden>HIGH SCORE</button></nav>
   <div class="native-panel"><div class="panel-heading"><span>VIDEO</span><span>01 / 03</span></div>
    <section class="controls" id="setup" aria-label="起動設定">
-    <label>ROM VERSION<select id="system"><option value="starblad">STAR BLADE · World</option></select></label>
+    <label id="game-choice" hidden>GAME<select id="system" disabled></select></label>
     <label>DISPLAY<select id="setting-display"><option value="Original">4:3</option><option value="FHD" selected>FHD</option><option value="UltraWide">Ultra Wide</option></select></label>
     <label>RESOLUTION<output id="display-resolution">1920 × 1080 / 16:9</output></label>
     <p id="display-warning" class="note" hidden>Ultra Wideでは、ゲームや場面によって画像の乱れ・ちらつき・表示欠けが発生する可能性があります。気になる場合はFHDまたは4:3をご利用ください。</p>
@@ -34,13 +34,13 @@
    </section>
    <p id="selection">ROMフォルダからゲームと補助ROMのZIPを自動で読み込みます。サーバーへ送信しません。</p><p id="status" role="status">起動環境を確認しています…</p>
   </div>
-  <aside class="native-side"><p class="eyebrow">GAME INFORMATION</p><strong id="selected-game"></strong><p id="selected-family"></p><div class="side-rule"></div><p>POLYGON CLASSICS</p><p>8 ARCADE CLASSICS</p><p id="renderer-status" role="status">GPU / WebGPU</p></aside>
+  <aside class="native-side"><p class="eyebrow">GAME INFORMATION</p><strong id="selected-game"></strong><p id="selected-family"></p><div class="side-rule"></div><p>POLYGON CLASSICS</p><p>LOCAL ROM PLAYER</p><p id="renderer-status" role="status">GPU / WebGPU</p></aside>
  </div>
  <div class="native-actions"><button id="title-button">TITLE</button><button id="quit">EXIT</button><button id="restore-defaults">RESTORE DEFAULTS</button><button id="play" class="primary" disabled>▶ &nbsp; START GAME</button></div>
 </section>
 <details class="web-info"><summary>Web版の利用について</summary><p>ROMフォルダを選ぶと、ゲームを切り替えても同じフォルダを使えます。ページの再読み込み後は再選択してください。ホーム画面やDockへの追加も利用できます。</p><p>GPU描画にはWebGPU対応ブラウザとHTTPSまたはlocalhostが必要です。通信対戦はWeb版では未対応です。傾きセンサにはHTTPSと利用許可が必要です。iPhone Safariは端末振動に非対応です。</p></details>
 <section class="screen" id="screen" aria-label="ゲーム画面" hidden>
-  <iframe id="game" title="StarBladeエミュレータ" src="player.html" allow="autoplay; fullscreen; gamepad" allowfullscreen></iframe>
+  <iframe id="game" title="ゲーム画面" src="player.html" allow="autoplay; fullscreen; gamepad" allowfullscreen></iframe>
   <div id="stick-surface" hidden aria-label="タッチスティック"><div id="stick-ring" hidden><i></i></div></div>
   <div id="cover"><span class="eyebrow">SYSTEM / LOADING</span><h2>LOADING...</h2><p>基板をチェックしています…</p></div>
 </section>
@@ -60,7 +60,7 @@
 <footer><p id="control-summary">5 コイン / 1 スタート / 矢印キー 照準 / Ctrl 発射</p><span id="game-label">POLYGON CLASSICS</span> <a href="licenses.html">ライセンス</a></footer>
 <details><summary>起動ログ</summary><pre id="log"></pre></details>
 <dialog id="video-dialog"><form method="dialog"><div class="dialog-heading"><h2>描画設定</h2><button aria-label="閉じる">×</button></div><p>ゲーム開始時に反映します。</p><label class="check"><input id="setting-fullscreen" type="checkbox">全画面で開始</label><label class="check"><input id="setting-fps" type="checkbox">速度を表示（ネイティブ版）</label><label>ポリゴン描画<select id="setting-renderer"><option value="GPU">GPU</option><option value="CPU">CPU</option></select></label><label>表示方式<select id="setting-render-style"><option value="Solid">通常表示</option><option value="Wireframe">3Dワイヤーフレーム</option></select></label><label>UIの発光<select id="setting-glow"><option value="Off">なし</option><option value="Weak">弱</option><option value="Medium">中</option><option value="Strong">強</option></select></label><p id="video-note" class="note"></p><button class="primary save">設定を保存</button></form></dialog>
-<dialog id="input-dialog"><form method="dialog"><div class="dialog-heading"><h2>操作設定</h2><button aria-label="閉じる">×</button></div><label>照準操作<select id="setting-aim"><option value="Mouse">マウス（STAR BLADE）</option><option value="Keyboard">キーボード</option></select></label><label class="check"><input id="setting-touch" type="checkbox">画面内の操作ボタンを表示</label><div id="motion-options"><label class="check"><input id="setting-tilt" type="checkbox">傾き操作</label><label class="check"><input id="setting-level" type="checkbox">水平維持（GPU）</label><label class="check"><input id="setting-haptics" type="checkbox">振動</label><p id="haptic-support"></p><button type="button" id="enable-motion">傾きセンサを有効にする</button><button type="button" id="test-haptic">振動テスト</button><p id="motion-status" role="status"></p></div><p>タッチスティックは触れた位置が中心です。ドラッグで操作し、離すと中央に戻ります。シューティングは操作中に自動射撃、SOLVALOUは2本目の指で対地射撃。</p><dl><dt>コイン / スタート</dt><dd>5 / 1</dd><dt>照準 / 発射</dt><dd>矢印キー / Ctrl<br>マウス操作時は移動 / 左クリック</dd><dt>細かなキー設定</dt><dd>ゲーム中にTab</dd></dl><p class="note">STAR BLADEはマウス移動で照準、左クリックで発射できます。操作方式はゲーム開始時に反映します。レースゲームは左右キーでハンドル、上キーでアクセル、下キーでブレーキ。iPhoneは画面内の操作ボタンを使います。複数のボタンを同時に押せます。</p><button class="primary save">設定を保存</button></form></dialog>
+<dialog id="input-dialog"><form method="dialog"><div class="dialog-heading"><h2>操作設定</h2><button aria-label="閉じる">×</button></div><label>照準操作<select id="setting-aim"><option value="Mouse">マウス（対応ゲーム）</option><option value="Keyboard">キーボード</option></select></label><label class="check"><input id="setting-touch" type="checkbox">画面内の操作ボタンを表示</label><div id="motion-options"><label class="check"><input id="setting-tilt" type="checkbox">傾き操作</label><label class="check"><input id="setting-level" type="checkbox">水平維持（GPU）</label><label class="check"><input id="setting-haptics" type="checkbox">振動</label><p id="haptic-support"></p><button type="button" id="enable-motion">傾きセンサを有効にする</button><button type="button" id="test-haptic">振動テスト</button><p id="motion-status" role="status"></p></div><p>タッチスティックは触れた位置が中心です。ドラッグで操作し、離すと中央に戻ります。シューティングは操作中に自動射撃、対応ゲームでは2本目の指で追加射撃。</p><dl><dt>コイン / スタート</dt><dd>5 / 1</dd><dt>照準 / 発射</dt><dd>矢印キー / Ctrl<br>マウス操作時は移動 / 左クリック</dd><dt>細かなキー設定</dt><dd>ゲーム中にTab</dd></dl><p class="note">対応ゲームではマウス移動で照準、左クリックで発射できます。操作方式はゲーム開始時に反映します。レースゲームは左右キーでハンドル、上キーでアクセル、下キーでブレーキ。iPhoneは画面内の操作ボタンを使います。複数のボタンを同時に押せます。</p><button class="primary save">設定を保存</button></form></dialog>
 <dialog id="ranking-dialog">
  <div class="dialog-heading"><h2>ハイスコア管理</h2><button id="ranking-close" aria-label="閉じる">×</button></div>
  <p>World · ST2のランキングです。プレイ中は自動保存し、次の起動で復元します。設定・照準の調整値は変更しません。</p>

@@ -21,3 +21,7 @@ export function selectGameRoms(library,system) {
  }
  return {files,missing,duplicates,hasGame:files.some(f=>f.name.toLowerCase()===system+'.zip')};
 }
+
+export function availableGames(library) {
+ return Object.keys(GAMES).filter(system => library.entries.has(system+'.zip'));
+}

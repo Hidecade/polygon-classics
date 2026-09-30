@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Polygon Classics",
   "short_name": "Polygon Classics",
-  "description": "Polygon Classics Web Preview — 8 arcade classics",
+  "description": "Browser arcade emulator with local ROM loading and GPU rendering",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

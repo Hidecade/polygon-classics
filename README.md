@@ -1,16 +1,15 @@
 # Polygon Classics
 
-Web arcade emulator · 20261001.3
+Web arcade emulator · 20261001.4
 
 **Play:** https://hidecade.github.io/polygon-classics/
 
-STAR BLADE / SOLVALOU / Virtua Racing / SEGA Rally Championship / DAYTONA USA / RIDGE RACER / RIDGE RACER 2 / RAVE RACER.
+Polygon Classics is a browser-based arcade emulator with GPU rendering, widescreen display options, and touch controls. Bring your own compatible ROM files to explore polygon-era arcade hardware.
 
-Select your ROM folder in the browser. The selected game and its BIOS ZIPs are found automatically, including subfolders. Game ROMs and BIOS ROMs are not included. Selected files are read locally; they are not uploaded to this site.
+Select your ROM folder in the browser. The game selector appears only after loading a folder and lists the compatible game ZIPs found there. The selected game and its BIOS ZIPs are found automatically, including subfolders. Game ROMs and BIOS ROMs are not included. Selected files are read locally; they are not uploaded to this site.
 
 - DISPLAY: 4:3 (1440×1080), FHD (1920×1080), Ultra Wide (2580×1080).
 - WebGPU rendering with CPU fallback. Ultra Wide can expose missing or unstable graphics.
-- VR uses the original board's 4:3 NORMAL projection, with side geometry added for FHD/Ultra Wide.
 - Boot checks run with frame skipping behind a LOADING screen.
 - Touch controls and supported-browser motion controls. iPhone Safari vibration is not supported.
 - Browser performance varies by device. Wi-Fi multiplayer is not included in this Web release.
