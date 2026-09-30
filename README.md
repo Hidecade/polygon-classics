@@ -1,12 +1,12 @@
 # Polygon Classics
 
-Web arcade emulator · 20261001.2
+Web arcade emulator · 20261001.3
 
 **Play:** https://hidecade.github.io/polygon-classics/
 
 STAR BLADE / SOLVALOU / Virtua Racing / SEGA Rally Championship / DAYTONA USA / RIDGE RACER / RIDGE RACER 2 / RAVE RACER.
 
-Select your own ROM ZIP files in the browser. Game ROMs and BIOS ROMs are not included. Selected files are read locally; they are not uploaded to this site.
+Select your ROM folder in the browser. The selected game and its BIOS ZIPs are found automatically, including subfolders. Game ROMs and BIOS ROMs are not included. Selected files are read locally; they are not uploaded to this site.
 
 - DISPLAY: 4:3 (1440×1080), FHD (1920×1080), Ultra Wide (2580×1080).
 - WebGPU rendering with CPU fallback. Ultra Wide can expose missing or unstable graphics.
@@ -30,3 +30,5 @@ The complete modified MAME source is attached to release [web-20261001.2](https:
 See [source/README.md](source/README.md) for rebuilding the core.
 MAME and bundled third-party code retain their original licenses and copyright notices: [licenses](docs/licenses.html).
 Game names, logos and game content belong to their respective rights holders; no ownership of those assets is claimed.
+
+ROM-folder indexing tests: `node --test tests/rom-library.test.mjs`. Folder access lasts for this page session; choose the folder again after reloading. Startup errors appear above the menu.

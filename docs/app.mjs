@@ -1,3 +1,4 @@
+import {indexRomFolder,selectGameRoms} from './rom-library.mjs';
 import {setupMobileInput} from './mobile-input.mjs';
 import {validateRoms,GAMES,racing,displayWidth,DISPLAY_MODES} from './config.mjs';
 import {HOSTED} from './deployment.mjs';
@@ -11,6 +12,7 @@ try { settings = {...defaults,...JSON.parse(localStorage.getItem('starblade.menu
 if(!Object.hasOwn(DISPLAY_MODES,settings.display))settings.display='FHD';
 if(!['Solid','Wireframe'].includes(settings.renderStyle))settings.renderStyle=defaults.renderStyle;
 let coreReady=false, playerReady=false, busy=false, boardLoading=false, localReady=false, generation=0;
+let romLibrary=indexRomFolder([]);
 let runtime={native:false,platform:'web',running:false};
 const log=message=>{$('log').textContent=($('log').textContent+message+'\n').slice(-24000);};
 const status=message=>{$('status').textContent=message;};
@@ -23,7 +25,9 @@ function refresh(){
  $('display-resolution').textContent=`${width} × 1080 / ${{Original:"4:3",FHD:"16:9",UltraWide:"43:18"}[settings.display]}`;
  $('display-warning').hidden=settings.display!=="UltraWide";
  const selected=$('system').value,game=GAMES[selected],race=racing(selected);
- $('rom-hint').textContent=game.roms.map(n=>n+'.zip').join(' / ');
+ const choice=selectGameRoms(romLibrary,selected),selectedReady=choice.hasGame&&!choice.duplicates.length;
+ $('rom-hint').textContent='関連ZIP: '+game.roms.map(n=>n+'.zip').join(' / ');
+ $('folder-summary').textContent=romLibrary.zipCount?`${romLibrary.folder||'選択フォルダ'} · ZIP ${romLibrary.zipCount}件 / このゲーム ${choice.files.length}件`:'フォルダ未選択';
  const logo=game.family==='starblade';
  $('title-logo').hidden=!logo;$('title-name').hidden=logo;
  $('title-logo').src=selected==='solvalou'?'solvalou-loading-logo.png':'starblade-loading-logo.png';
@@ -38,12 +42,12 @@ function refresh(){
  $('ranking-menu').hidden=HOSTED || !native || !runtime.native;
  $('ranking-menu').disabled=busy || runtime.running;
  $('target').closest('label').hidden=HOSTED;
- $('play').disabled=busy || (native ? !runtime.native || runtime.running : !coreReady || !playerReady || (!localReady && !$('rom').files.length));
- $('start').disabled=busy || !coreReady || !playerReady || !$('rom').files.length;
+ $('play').disabled=busy || (native ? !runtime.native || runtime.running : !coreReady || !playerReady || (!localReady && !selectedReady));
+ $('start').disabled=busy || !coreReady || !playerReady || !selectedReady;
  $('local').disabled=busy || !coreReady || !playerReady;
  $('local').hidden=!localReady || native;
  $('start').hidden=native;
- $('rom').disabled=busy || native;
+ $('rom').disabled=busy || native;$('choose-folder').disabled=busy || native;
  $('system').disabled=busy || native;
  $('target').disabled=busy;
  $('touch-controls').hidden=!busy || boardLoading || native || !settings.touch;
@@ -75,12 +79,35 @@ async function fullscreen(){
  try{if(settings.touch){document.body.classList.toggle('expanded');$('screen').classList.toggle('expanded');return;}if(document.fullscreenElement)await document.exitFullscreen();else if($('screen').requestFullscreen)await $('screen').requestFullscreen();else{document.body.classList.toggle('expanded');$('screen').classList.toggle('expanded');}}catch{document.body.classList.toggle('expanded');$('screen').classList.toggle('expanded');}
 }
 $('fullscreen').onclick=fullscreen;
-$('target').onchange=()=>{status($('target').value==='native'?'保存済みROMを使ってアプリを起動します。':'ROMを選択するか、保存済みROMで開始してください。');refresh();};
-$('rom').onchange=()=>{$('selection').textContent=[...$('rom').files].map(file=>file.name).join(' / ') || 'ROMを選択してください。';refresh();};
+$('target').onchange=()=>{status($('target').value==='native'?'保存済みROMを使ってアプリを起動します。':'ROMフォルダを選択するか、保存済みROMで開始してください。');refresh();};
+$('choose-folder').onclick=()=>{
+ if(!('webkitdirectory' in $('rom'))){showFailure('このブラウザはフォルダ選択に対応していません。対応する最新版のブラウザで開いてください。');return;}
+ $('rom').click();
+};
+function describeFolder(){
+ const choice=selectGameRoms(romLibrary,$('system').value);
+ if(!romLibrary.zipCount){status('ROM ZIPが入ったフォルダを選択してください。');return;}
+ if(choice.duplicates.length){status('同名のZIPが複数あります: '+choice.duplicates.join(' / ')+'。重複を除いたフォルダを選んでください。');return;}
+ if(!choice.hasGame){status($('system').value+'.zip が選択フォルダにありません。');return;}
+ status('読込対象: '+choice.files.map(f=>f.name).join(' / ')+(choice.missing.length?'。関連ZIPが見つかりません: '+choice.missing.join(' / ')+'（統合ROMの場合は不要なことがあります）。':'。ゲーム開始を押してください。'));
+}
+$('rom').onchange=()=>{romLibrary=indexRomFolder($('rom').files);$('boot-error').hidden=true;refresh();describeFolder();};
+function showFailure(message){
+ const text=$('log').textContent;
+ let detail=String(message||'起動に失敗しました。');
+ if(/NOT FOUND|Required files are missing/.test(text)){
+  const missing=selectGameRoms(romLibrary,$('system').value).missing;
+  const names=[...new Set([...text.matchAll(/^(.+?) NOT FOUND/gm)].map(m=>m[1]))];
+  detail='必要なROMが不足しています: '+names.join(' / ')+'. '+(missing.length?'同じROMフォルダに '+missing.join(' / ')+' を追加し、フォルダを選び直してください。':'ZIPの内容を起動ログで確認してください。');
+ }
+ $('boot-error-message').textContent=detail;$('boot-error').hidden=false;
+ $('boot-error').focus();$('boot-error').scrollIntoView({block:'start'});
+}
+
 async function startWeb(local){
  const run=++generation;
  try{
-  busy=true;boardLoading=true;refresh();$('log').textContent='';status('ROMを読み込んでいます…');
+  $('boot-error').hidden=true;busy=true;boardLoading=true;refresh();$('log').textContent='';status('ROMを読み込んでいます…');
   $('menu').hidden=true;$('screen').hidden=false;$('game-tools').hidden=false;$('cover').hidden=false;$('cover').querySelector('p').textContent='ROMを読み込んでいます…';document.body.classList.add('playing');
   if(settings.fullscreen)await fullscreen();
   let roms;
@@ -88,17 +115,18 @@ async function startWeb(local){
    roms=[];
    for(const name of GAMES[$('system').value].roms){const response=await fetch(`/local-rom/${name}.zip`);if(response.ok)roms.push({name:`${name}.zip`,data:await response.arrayBuffer()});else if(name===$('system').value)throw Error(`${name}.zip を読み込めません。`);}
   }else{
-   const wanted=new Set(GAMES[$('system').value].roms.map(n=>n+'.zip'));
-   const files=[...$('rom').files].filter(f=>wanted.has(f.name.toLowerCase()));validateRoms(files,$('system').value);
+   const choice=selectGameRoms(romLibrary,$('system').value);
+   if(choice.duplicates.length)throw Error('同名のROM ZIPが複数あります: '+choice.duplicates.join(' / '));
+   const files=choice.files;validateRoms(files,$('system').value);
    roms=await Promise.all(files.map(async file=>({name:file.name.toLowerCase(),data:await file.arrayBuffer()})));
   }
   if(run!==generation)return;
   $('game').contentWindow.postMessage({type:'boot',system:$('system').value,roms,renderer:settings.renderer,aim:settings.aim,display:settings.display},location.origin,roms.map(rom=>rom.data));
- }catch(error){if(run!==generation)return;resetPlayer();menu();status(error.message);log(error.message);}
+ }catch(error){if(run!==generation)return;resetPlayer();menu();status(error.message);log(error.message);showFailure(error.message);}
 }
 $('start').onclick=()=>startWeb(false);$('local').onclick=()=>startWeb(true);
 $('play').onclick=async()=>{
- if($('target').value!=='native')return startWeb(!$('rom').files.length && localReady);
+ if($('target').value!=='native')return startWeb(!romLibrary.zipCount && localReady);
  try{
   busy=true;refresh();status('アプリを起動しています…');
   const response=await fetch('/api/native-launch',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(settings)});
@@ -121,7 +149,7 @@ window.addEventListener('message',event=>{
   refresh();
  }
  if(data.type==='running'){boardLoading=false;$('cover').hidden=true;refresh();status('MAME実行中');$('game').focus();}
- if(data.type==='error'||data.type==='exit'){resetPlayer();menu();status(data.message);log(data.message);}
+ if(data.type==='error'||data.type==='exit'){resetPlayer();menu();status(data.message);log(data.message);showFailure(data.message);}
 });
 const held=new Map();
 function input(code,active){$('game').contentWindow.postMessage({type:'input',code,active},location.origin);}
@@ -137,10 +165,10 @@ async function checkRuntime(initial=false){try{const response=await fetch('/api/
 const mobileInput=setupMobileInput({getState:()=>({busy:busy&&!boardLoading,settings,system:$('system').value,race:racing($('system').value)}),send:data=>$('game').contentWindow.postMessage(data,location.origin),status:message=>{$('motion-status').textContent=message;}});
 let localCheck=0;
 async function checkLocal(){const ticket=++localCheck;localReady=false;refresh();if(!HOSTED)try{const response=await fetch(`/local-rom/${$('system').value}.zip`,{method:'HEAD'});if(ticket===localCheck)localReady=response.ok;}catch{}refresh();}
-$('system').onchange=checkLocal;
+$('system').onchange=()=>{checkLocal();$('boot-error').hidden=true;describeFolder();};
 async function checkCore(){try{for(const path of ['core/starblade.js',HOSTED?'core/manifest.json':'core/starblade.wasm']){if(!(await fetch(path,{method:'HEAD',cache:'no-store'})).ok)throw new Error('Web版コアが未ビルドです。');}coreReady=true;}catch(error){log(error.message);}}
 await Promise.all([HOSTED?Promise.resolve():checkRuntime(true),checkCore(),checkLocal()]);
-status(runtime.native?'ゲーム開始でWindowsアプリを起動します。':coreReady?'ROMを選択して、ゲーム開始を押してください。':'Web版コアがありません。READMEのビルド手順を確認してください。');
+status(runtime.native?'ゲーム開始でWindowsアプリを起動します。':coreReady?'ROMフォルダを選択して、ゲーム開始を押してください。':'Web版コアがありません。READMEのビルド手順を確認してください。');
 refresh();if(!HOSTED)setInterval(()=>checkRuntime(),3000);
 
 // Match the native 1.4-second brand screen; tapping skips it.
