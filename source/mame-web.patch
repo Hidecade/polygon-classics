@@ -1,0 +1,1877 @@
+diff --git a/scripts/genie.lua b/scripts/genie.lua
+index fa4a5bb6fa1..f033dd9fc1c 100644
+--- a/scripts/genie.lua
++++ b/scripts/genie.lua
+@@ -1099,7 +1099,7 @@ configuration { "asmjs" }
+ 	}
+ 	buildoptions_cpp {
+ 		"-std=c++20",
+-		"-s EXCEPTION_CATCHING_ALLOWED=\"['_ZN15running_machine17start_all_devicesEv','_ZN8chd_file11open_commonEb','_ZN8chd_file13read_metadataEjjRNSt3__212basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE','_ZN8chd_file13read_metadataEjjRNSt3__26vectorIhNS0_9allocatorIhEEEE','_ZNK19netlist_mame_device19base_validity_checkER16validity_checker']\"",
++		"-s EXCEPTION_CATCHING_ALLOWED=\"['_ZN15running_machine17start_all_devicesEv','_ZN8chd_file11open_commonEb','_ZN8chd_file13read_metadataEjjRNSt3__212basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE','_ZN8chd_file13read_metadataEjjRNSt3__26vectorIhNS0_9allocatorIhEEEE','_ZNK19netlist_mame_device19base_validity_checkER16validity_checker','_ZN12cli_frontend7executeERNSt3__26vectorINS0_12basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEENS5_IS7_EEEE','_ZN12_GLOBAL__N_127validate_delegates_latebindEv','_ZN16validity_checker16validate_inlinesEv']\"",
+ 	}
+ 	defines {
+ 		"ASIO_HAS_PTHREADS",
+@@ -1111,11 +1111,12 @@ configuration { "asmjs" }
+ 		"-s USE_SDL_TTF=3",
+ 		"-s DEFAULT_LIBRARY_FUNCS_TO_INCLUDE=\"['\\$$ERRNO_CODES']\"",
+ 		"-s EXPORTED_FUNCTIONS=\"['_main', '_malloc', '__ZN15running_machine30emscripten_get_running_machineEv', '__ZN15running_machine17emscripten_get_uiEv', '__ZN15running_machine20emscripten_get_soundEv', '__ZN15mame_ui_manager12set_show_fpsEb', '__ZNK15mame_ui_manager8show_fpsEv', '__ZN13sound_manager4muteEbh', '__ZN15running_machine15emscripten_saveEPKc', '__ZN15running_machine15emscripten_loadEPKc', '__ZN15running_machine21emscripten_hard_resetEv', '__ZN15running_machine21emscripten_soft_resetEv', '__ZN15running_machine15emscripten_exitEv']\"",
+-		"-s EXPORTED_RUNTIME_METHODS=\"['cwrap']\"",
++		"-s EXPORTED_RUNTIME_METHODS=\"['cwrap','FS']\"",
+ 		"-s ERROR_ON_UNDEFINED_SYMBOLS=0",
+ 		"-s STACK_SIZE=5MB",
++		"-s EXIT_RUNTIME=1",
+ 		"-s MAX_WEBGL_VERSION=2",
+-		"-s EXCEPTION_CATCHING_ALLOWED=\"['_ZN15running_machine17start_all_devicesEv','_ZN8chd_file11open_commonEb','_ZN8chd_file13read_metadataEjjRNSt3__212basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE','_ZN8chd_file13read_metadataEjjRNSt3__26vectorIhNS0_9allocatorIhEEEE','_ZNK19netlist_mame_device19base_validity_checkER16validity_checker']\"",
++		"-s EXCEPTION_CATCHING_ALLOWED=\"['_ZN15running_machine17start_all_devicesEv','_ZN8chd_file11open_commonEb','_ZN8chd_file13read_metadataEjjRNSt3__212basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEE','_ZN8chd_file13read_metadataEjjRNSt3__26vectorIhNS0_9allocatorIhEEEE','_ZNK19netlist_mame_device19base_validity_checkER16validity_checker','_ZN12cli_frontend7executeERNSt3__26vectorINS0_12basic_stringIcNS0_11char_traitsIcEENS0_9allocatorIcEEEENS5_IS7_EEEE','_ZN12_GLOBAL__N_127validate_delegates_latebindEv','_ZN16validity_checker16validate_inlinesEv']\"",
+ 		"--pre-js " .. _MAKE.esc(MAME_DIR) .. "src/osd/modules/sound/js_sound.js",
+ 		"--post-js " .. _MAKE.esc(MAME_DIR) .. "scripts/resources/emscripten/emscripten_post.js",
+ 		"--embed-file " .. _MAKE.esc(MAME_DIR) .. "bgfx/chains@bgfx/chains",
+diff --git a/scripts/src/osd/windows.lua b/scripts/src/osd/windows.lua
+index dcc981988ca..fe2a59eaf45 100644
+--- a/scripts/src/osd/windows.lua
++++ b/scripts/src/osd/windows.lua
+@@ -48,6 +48,7 @@ function maintargetosdoptions(_target,_subtarget)
+ 		"shcore",
+ 		"shlwapi",
+ 		"uuid",
++		"ksuser",
+ 	}
+ end
+ 
+diff --git a/src/devices/cpu/m37710/m37710.cpp b/src/devices/cpu/m37710/m37710.cpp
+index e0f3394ae77..c6791866020 100644
+--- a/src/devices/cpu/m37710/m37710.cpp
++++ b/src/devices/cpu/m37710/m37710.cpp
+@@ -61,6 +61,7 @@
+ */
+ 
+ #include "emu.h"
++#include "system22-profile.h"
+ #include "m37710.h"
+ 
+ #include "m37710cm.h"
+@@ -1182,6 +1183,7 @@ void m37710_cpu_device::device_reset()
+ /* Execute some instructions */
+ void m37710_cpu_device::execute_run()
+ {
++    system22_profile::scope profile_scope(3);
+ 	m37710i_update_irqs();
+ 
+ 	int clocks = m_ICount;
+diff --git a/src/devices/cpu/m68000/m68kcpu.cpp b/src/devices/cpu/m68000/m68kcpu.cpp
+index cadd62e78eb..ac316b7d9ce 100644
+--- a/src/devices/cpu/m68000/m68kcpu.cpp
++++ b/src/devices/cpu/m68000/m68kcpu.cpp
+@@ -25,6 +25,7 @@ static const char copyright_notice[] =
+ /* ======================================================================== */
+ 
+ #include "emu.h"
++#include "system22-profile.h"
+ #include "m68kmusashi.h"
+ #include "m68kdasm.h"
+ 
+@@ -834,6 +835,7 @@ bool m68000_musashi_device::memory_translate(int spacenum, int intention, offs_t
+ 
+ void m68000_musashi_device::execute_run()
+ {
++    system22_profile::scope profile_scope(0);
+ 	// Softfloat's rounding mode and precision are globals shared across all
+ 	// users in MAME, so save/restore them.  execute_run() has multiple return
+ 	// paths and can exit via throw, so we use an RAII helper.
+diff --git a/src/devices/cpu/tms320c2x/tms320c2x.cpp b/src/devices/cpu/tms320c2x/tms320c2x.cpp
+index 6bcfd028208..7be00086629 100644
+--- a/src/devices/cpu/tms320c2x/tms320c2x.cpp
++++ b/src/devices/cpu/tms320c2x/tms320c2x.cpp
+@@ -98,6 +98,7 @@ Table 3-2.  TMS320C25/26 Memory Blocks
+ 
+ 
+ #include "emu.h"
++#include "system22-profile.h"
+ #include "tms320c2x.h"
+ 
+ #include "tms320c2x_dasm.h"
+@@ -1933,6 +1934,7 @@ inline void tms320c2x_device::process_timer(int clocks)
+  ****************************************************************************/
+ void tms320c2x_device::execute_run()
+ {
++    system22_profile::scope profile_scope((!std::strcmp(tag(), ":master") ? 1 : 2), m_PC);
+ 	/**** Respond to external hold signal */
+ 	if (!m_hold_in.isunset()) {
+ 		if (m_hold_in() == ASSERT_LINE) {
+diff --git a/src/emu/machine.cpp b/src/emu/machine.cpp
+index bf451940140..24bf8e97e5d 100644
+--- a/src/emu/machine.cpp
++++ b/src/emu/machine.cpp
+@@ -9,6 +9,10 @@
+ ***************************************************************************/
+ 
+ #include "emu.h"
++#ifdef __EMSCRIPTEN__
++#include "polygon-web-boot-state.h"
++#include "polygon-web-display.h"
++#endif
+ 
+ #include "config.h"
+ #include "crsshair.h"
+@@ -360,6 +364,9 @@ void running_machine::start()
+ 
+ int running_machine::run(bool quiet)
+ {
++#ifdef __EMSCRIPTEN__
++    polygon_web_display_init();
++#endif
+ 	int error = EMU_ERR_NONE;
+ 
+ 	// use try/catch for deep error recovery
+@@ -1412,12 +1419,15 @@ void running_machine::emscripten_main_loop()
+ 
+ 		// Emscripten will call this function at 60Hz, so step the simulation
+ 		// forward for the amount of time that has passed since the last frame
+-		const attotime frametime(0,HZ_TO_ATTOSECONDS(60));
++		const bool boot_batch = polygon_web_boot_active;
++        const double boot_deadline = emscripten_get_now() + 8.0;
++        const attotime frametime(0,HZ_TO_ATTOSECONDS(60) * (boot_batch ? 8 : 1));
+ 		const attotime stoptime(scheduler->time() + frametime);
+ 
+ 		while (!machine->m_paused && !machine->scheduled_event_pending() && scheduler->time() < stoptime)
+ 		{
+ 			scheduler->timeslice();
++            if (boot_batch && (!polygon_web_boot_active || emscripten_get_now() >= boot_deadline)) break;
+ 			// handle save/load
+ 			if (machine->m_saveload_schedule != saveload_schedule::NONE)
+ 			{
+diff --git a/src/emu/screen.cpp b/src/emu/screen.cpp
+index 65f98dae2b0..cff25cf8b33 100644
+--- a/src/emu/screen.cpp
++++ b/src/emu/screen.cpp
+@@ -393,6 +393,8 @@ void screen_device::device_stop()
+ {
+ 	machine().render().texture_free(m_texture[0]);
+ 	machine().render().texture_free(m_texture[1]);
++	for (auto *texture : m_presentation_overlay_texture)
++		if (texture) machine().render().texture_free(texture);
+ 	if (m_burnin.valid())
+ 		finalize_burnin();
+ }
+@@ -1269,7 +1271,16 @@ bool screen_device::video_output_update()
+ 				{
+ 					create_composited_bitmap();
+ 				}
+-				m_texture[m_curbitmap]->set_bitmap(m_bitmap[m_curbitmap], m_visarea, m_bitmap[m_curbitmap].texformat());
++				if (m_presentation_bitmap)
++					m_texture[m_curbitmap]->set_bitmap(*m_presentation_bitmap, m_presentation_bitmap->cliprect(), TEXFORMAT_PALETTE16);
++				else
++					m_texture[m_curbitmap]->set_bitmap(m_bitmap[m_curbitmap], m_visarea, m_bitmap[m_curbitmap].texformat());
++				if (m_presentation_overlay)
++				{
++					if (!m_presentation_overlay_texture[m_curbitmap])
++						m_presentation_overlay_texture[m_curbitmap] = machine().render().texture_alloc();
++					m_presentation_overlay_texture[m_curbitmap]->set_bitmap(*m_presentation_overlay, m_presentation_overlay->cliprect(), TEXFORMAT_RGB32);
++				}
+ 				m_curtexture = m_curbitmap;
+ 				m_curbitmap = 1 - m_curbitmap;
+ 			}
+@@ -1280,6 +1291,14 @@ bool screen_device::video_output_update()
+ 			// create an empty container with a single quad
+ 			m_container->empty();
+ 			m_container->add_quad(0.0f, 0.0f, 1.0f, 1.0f, color, m_texture[m_curtexture], PRIMFLAG_BLENDMODE(BLENDMODE_NONE) | PRIMFLAG_SCREENTEX(1));
++			if (m_presentation_overlay && m_presentation_overlay_texture[m_curtexture])
++			{
++				const float overlay_width = 4.0f * m_presentation_bitmap->height()
++					/ (3.0f * m_presentation_bitmap->width());
++				const float overlay_left = (1.0f - overlay_width) * 0.5f;
++				m_container->add_quad(overlay_left, 0.0f, overlay_left + overlay_width, 1.0f,
++					color, m_presentation_overlay_texture[m_curtexture], PRIMFLAG_BLENDMODE(BLENDMODE_ADD) | PRIMFLAG_ANTIALIAS(1));
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/emu/screen.h b/src/emu/screen.h
+index f4ab9d060b4..b277f955bf6 100644
+--- a/src/emu/screen.h
++++ b/src/emu/screen.h
+@@ -356,6 +356,11 @@ public:
+ 	bool has_palette() const override { return m_palette != nullptr; }
+ 	screen_bitmap &curbitmap() { return m_bitmap[m_curtexture]; }
+ 
++	// Optional driver-owned indexed presentation surface, independent of raster timing.
++	void set_presentation_bitmap(bitmap_ind16 &bitmap) { m_presentation_bitmap = &bitmap; }
++
++	void set_presentation_overlay(bitmap_rgb32 *bitmap) { m_presentation_overlay = bitmap; }
++
+ 	// dynamic configuration
+ 	void configure(int width, int height, const rectangle &visarea, attotime frame_period);
+ 	void reset_origin(int beamy = 0, int beamx = 0);
+@@ -455,6 +460,9 @@ private:
+ 	// textures and bitmaps
+ 	texture_format      m_texformat;                // texture format
+ 	render_texture *    m_texture[2];               // 2x textures for the screen bitmap
++	bitmap_ind16 *      m_presentation_bitmap = nullptr;
++	bitmap_rgb32 *      m_presentation_overlay = nullptr;
++	render_texture *    m_presentation_overlay_texture[2] = { nullptr, nullptr };
+ 	screen_bitmap       m_bitmap[2];                // 2x bitmaps for rendering
+ 	std::vector<bitmap_t *> m_scan_bitmaps[2];      // 2x bitmaps for each individual scanline
+ 	bitmap_ind8         m_priority;                 // priority bitmap
+diff --git a/src/emu/video.cpp b/src/emu/video.cpp
+index 7d63bf91cb1..fac2cf887c3 100644
+--- a/src/emu/video.cpp
++++ b/src/emu/video.cpp
+@@ -9,7 +9,11 @@
+ ***************************************************************************/
+ 
+ #include "emu.h"
++#include "starblade-gpu-frame.h"
+ #include "video.h"
++#ifdef __EMSCRIPTEN__
++#include "polygon-web-boot.h"
++#endif
+ 
+ #include "crsshair.h"
+ #include "debugger.h"
+@@ -215,6 +219,9 @@ void video_manager::set_frameskip(int frameskip)
+ 
+ void video_manager::frame_update(bool from_debugger)
+ {
++#ifdef __EMSCRIPTEN__
++    polygon_web_boot_update(machine());
++#endif
+ 	// only render sound and video if we're in the running phase
+ 	machine_phase const phase = machine().phase();
+ 	bool skipped_it = m_skipping_this_frame;
+@@ -1044,6 +1051,7 @@ typedef software_renderer<u32, 0,0,0, 16,8,0, false, false> snap_renderer;
+ 
+ void video_manager::create_snapshot_bitmap(screen_device *screen)
+ {
++    starblade_gpu::prepare_snapshot();
+ 	// select the appropriate view in our dummy target
+ 	if (m_snap_native && screen)
+ 	{
+diff --git a/src/frontend/mame/mame.cpp b/src/frontend/mame/mame.cpp
+index 2dfe2439a97..4aa15746281 100644
+--- a/src/frontend/mame/mame.cpp
++++ b/src/frontend/mame/mame.cpp
+@@ -277,10 +277,11 @@ int mame_machine_manager::execute()
+ 		}
+ 
+ 		// create the machine configuration
+-		machine_config config(*system, m_options);
++		auto config_owner = std::make_unique<machine_config>(*system, m_options);
+ 
+-		// create the machine structure and driver
+-		running_machine machine(config, *this);
++		// Keep the machine and its configuration alive across the browser yield.
++		auto machine_owner = std::make_unique<running_machine>(*config_owner, *this);
++		running_machine &machine = *machine_owner;
+ 
+ 		set_machine(&machine);
+ 
+diff --git a/src/frontend/mame/ui/ui.cpp b/src/frontend/mame/ui/ui.cpp
+index f92c4abb38a..8fb40064841 100644
+--- a/src/frontend/mame/ui/ui.cpp
++++ b/src/frontend/mame/ui/ui.cpp
+@@ -662,6 +662,38 @@ void mame_ui_manager::display_startup_screens(bool first_time)
+ 	int const str = machine().options().seconds_to_run();
+ 	bool show_gameinfo = !machine().options().skip_gameinfo();
+ 	bool show_warnings = true;
++	if ((!std::strcmp(machine().system().name, "starblad") || !std::strcmp(machine().system().name, "starbladj") || !std::strcmp(machine().system().name, "solvalou"))
++		&& machine().options().skip_gameinfo()
++		&& !machine_info().has_severe_warnings()
++		&& !machine().rom_load().warnings()
++		&& !machine().rom_load().knownbad())
++		show_warnings = false;
++	if ((!std::strcmp(machine().system().name, "vr") || !std::strcmp(machine().system().name, "ridgerac") || !std::strcmp(machine().system().name, "ridgeracj"))
++        && machine().options().skip_gameinfo()
++        && !machine_info().has_severe_warnings()
++        && !machine().rom_load().warnings()
++        && !machine().rom_load().knownbad())
++        show_warnings = false;
++    if ((!std::strcmp(machine().system().name, "ridgera2") || !std::strcmp(machine().system().name, "raverace"))
++        && machine().options().skip_gameinfo()
++        && !machine_info().has_severe_warnings()
++        && !machine().rom_load().warnings() && !machine().rom_load().knownbad())
++        show_warnings = false;
++    if (!std::strcmp(machine().system().name, "srallyc")
++        && machine().options().skip_gameinfo()
++        && !machine().rom_load().warnings() && !machine().rom_load().knownbad())
++        show_warnings = false;
++    if (!std::strcmp(machine().system().name, "daytona")
++        && machine().options().skip_gameinfo()
++        && !machine_info().has_severe_warnings()
++        && !machine().rom_load().warnings() && !machine().rom_load().knownbad())
++        show_warnings = false;
++	if ((!std::strcmp(machine().system().name, "vr") || !std::strcmp(machine().system().name, "ridgerac") || !std::strcmp(machine().system().name, "ridgeracj"))
++        && machine().options().skip_gameinfo()
++        && !machine_info().has_severe_warnings()
++        && !machine().rom_load().warnings()
++        && !machine().rom_load().knownbad())
++        show_warnings = false;
+ 	bool video_none = strcmp(downcast<osd_options &>(machine().options()).video(), OSDOPTVAL_NONE) == 0;
+ 
+ 	// disable everything if we are using -str for 300 (5 minutes) or fewer seconds, or if we're the empty driver,
+diff --git a/src/mame/namco/namcos21_3d.cpp b/src/mame/namco/namcos21_3d.cpp
+index c760bcc899d..ff9c79f9559 100644
+--- a/src/mame/namco/namcos21_3d.cpp
++++ b/src/mame/namco/namcos21_3d.cpp
+@@ -11,6 +11,10 @@ TODO:
+ 
+ #include "emu.h"
+ #include "namcos21_3d.h"
++#include "starblade-wide-backdrop.h"
++#if defined(__clang__)
++#pragma clang fp contract(off)
++#endif
+ 
+ DEFINE_DEVICE_TYPE(NAMCOS21_3D, namcos21_3d_device, "namcos21_3d", "Namco System 21 3D Rasterizer")
+ 
+@@ -47,17 +51,25 @@ void namcos21_3d_device::device_start()
+ 
+ void namcos21_3d_device::swap_and_clear_poly_framebuffer()
+ {
++    m_gpu_visible.swap(m_gpu_work);
++    m_gpu_work.clear();
++    m_gpu_visible_valid = m_gpu_collect;
++    m_gpu_resolved = false;
++    m_gpu_collect = m_wireframe || (m_gpu_capable && starblade_gpu::available && starblade_gpu::requested);
++    m_wire_stabilizer.next_frame(m_wireframe && (m_projection_scale_x > 1 || m_projection_scale_y > 1));
+ 	// swap work and visible framebuffers
+ 	m_poly_framebuffer_z.swap(m_poly_framebuffer_z2);
+ 	m_poly_framebuffer_pens.swap(m_poly_framebuffer_pens2);
+ 
+ 	// wipe work framebuffers
++	if (m_gpu_collect) return;
+ 	std::fill_n(m_poly_framebuffer_z.get(), m_framebuffer_size, 0x8000);
+ 	std::fill_n(m_poly_framebuffer_pens.get(), m_framebuffer_size, 0);
+ }
+ 
+ void namcos21_3d_device::copy_visible_poly_framebuffer(bitmap_ind16 &bitmap, const rectangle &cliprect)
+ {
++    resolve_visible_gpu();
+ 	rectangle clip = { 0, m_poly_frame_width - 1, 0, m_poly_frame_height - 1 };
+ 	clip &= cliprect;
+ 
+@@ -93,6 +105,10 @@ void namcos21_3d_device::renderscanline_flat(const edge *e1, const edge *e2, int
+ 		x0 = std::max(x0, 0);
+ 		x1 = std::min(x1, m_poly_frame_width);
+ 
++        if (m_gpu_collect) {
++            if (x0 < x1 && zsort < 0x8000) m_gpu_work.push_back({unsigned(sy), {unsigned(x0), unsigned(x1), color, unsigned(zsort)}});
++            return;
++        }
+ 		for (int x = x0; x < x1; x++)
+ 		{
+ 			if (zsort < zbuf[x])
+@@ -104,6 +120,8 @@ void namcos21_3d_device::renderscanline_flat(const edge *e1, const edge *e2, int
+ 	}
+ }
+ 
++#include "starblade-wire-renderline.inc"
++
+ void namcos21_3d_device::rendertri(const n21_vertex *v0, const n21_vertex *v1, const n21_vertex *v2, u16 color, int zsort)
+ {
+ 	// first, sort so that v0->y <= v1->y <= v2->y
+@@ -213,7 +231,7 @@ void namcos21_3d_device::rendertri(const n21_vertex *v0, const n21_vertex *v1, c
+ 	}
+ }
+ 
+-void namcos21_3d_device::blit_single_quad(int sx[4], int sy[4], int zcode[4], u16 color)
++void namcos21_3d_device::blit_single_quad(int sx[4], int sy[4], int zcode[4], u16 color, const n21_vertex *stable)
+ {
+ 	// backface culling
+ 	const s64 cross1 =
+@@ -223,9 +241,15 @@ void namcos21_3d_device::blit_single_quad(int sx[4], int sy[4], int zcode[4], u1
+ 			(sx[3] - sx[2]) * (sy[0] - sy[2]) -
+ 			(sy[3] - sy[2]) * (sx[0] - sx[2]);
+ 
+-	if (cross1 >= 0LL && cross2 >= 0LL)
++	if (!stable && cross1 >= 0LL && cross2 >= 0LL)
+ 		return;
+ 
++	const bool wide_backdrop = m_poly_frame_width >= 1920 && m_poly_frame_height == 1080
++        && (starblade_ranking_backdrop(sx, sy, zcode, color)
++            || (m_solvalou_wide_effects && solvalou_screen_flash(sx, sy, zcode, color)));
++    const bool ranking_panel = !m_solvalou_wide_effects
++        && m_poly_frame_width >= 1920 && m_poly_frame_height == 1080
++        && starblade_ranking_panel(sx, sy, zcode, color);
+ 	const u8 code = color >> 8;
+ 
+ 	// polygon colors start at 0x2000
+@@ -252,13 +276,34 @@ void namcos21_3d_device::blit_single_quad(int sx[4], int sy[4], int zcode[4], u1
+ 
+ 	for (int i = 0; i < 4; i++)
+ 	{
+-		v[i].x = m_poly_frame_width / 2 + sx[i];
+-		v[i].y = m_poly_frame_height / 2 + sy[i];
++		v[i].x = m_poly_frame_width / 2 + sx[i] * m_projection_scale_x;
++		v[i].y = m_poly_frame_height / 2 + sy[i] * m_projection_scale_y;
+ 		v[i].z = zcode[i];
++        if (stable) v[i] = stable[i];
++        if (wide_backdrop) v[i].x = sx[i] < 0 ? 0 : m_poly_frame_width;
+ 	}
+ 
+-	rendertri(&v[0], &v[1], &v[2], color, zsort);
+-	rendertri(&v[2], &v[3], &v[0], color, zsort);
++    if (ranking_panel)
++        starblade_extend_panel(v, m_poly_frame_width);
++
++    if (stable) {
++        const auto cross = [](const n21_vertex &a, const n21_vertex &b, const n21_vertex &c) {
++            return (b.x-a.x)*(c.y-a.y) - (b.y-a.y)*(c.x-a.x);
++        };
++        if (cross(v[0],v[1],v[2]) >= 0 && cross(v[2],v[3],v[0]) >= 0) return;
++    }
++	if (m_wireframe)
++	{
++		rendertri(&v[0], &v[1], &v[2], 0, zsort);
++		rendertri(&v[2], &v[3], &v[0], 0, zsort);
++		for (int i = 0; i < 4; ++i)
++			renderline(v[i], v[(i + 1) & 3], color, zsort);
++	}
++	else
++	{
++		rendertri(&v[0], &v[1], &v[2], color, zsort);
++		rendertri(&v[2], &v[3], &v[0], color, zsort);
++	}
+ }
+ 
+ void namcos21_3d_device::draw_direct_quad(const u16 *source, u16 color)
+@@ -275,8 +320,13 @@ void namcos21_3d_device::draw_direct_quad(const u16 *source, u16 color)
+ 	blit_single_quad(sx, sy, zcode, color);
+ }
+ 
++#include "starblade-stable-quads.inc"
++
+ int namcos21_3d_device::draw_quads(const u16 *source, const u8 *pointram, const u32 ptram_size, u32 quad_idx)
+ {
++    if (m_wireframe && (m_projection_scale_x > 1 || m_projection_scale_y > 1)) {
++        return draw_stable_quads(source, pointram, ptram_size, quad_idx);
++    }
+ 	const u32 ptram_mask = ptram_size - 1;
+ 	quad_idx = (quad_idx * 6) & ptram_mask;
+ 
+@@ -315,3 +365,43 @@ int namcos21_3d_device::draw_quads(const u16 *source, const u8 *pointram, const
+ 
+ 	return (max_vi + 1) * 3;
+ }
++
++// Materialize CPU surfaces only for fallback/save states, never for GPU display.
++void namcos21_3d_device::resolve_spans(const std::vector<starblade_gpu::scan_span> &spans, u16 *pens, u16 *depth)
++{
++    std::fill_n(pens, m_framebuffer_size, 0);
++    std::fill_n(depth, m_framebuffer_size, 0x8000);
++    std::vector<u16> edge_pens(m_framebuffer_size, 0), edge_depth(m_framebuffer_size, 0x8000);
++    std::vector<u8> edge_coverage(m_framebuffer_size, 0);
++    for (auto &s : starblade_gpu::expand_lines(spans, m_poly_frame_width, m_poly_frame_height)) for (unsigned x = s.pixels.x0; x < s.pixels.x1; ++x) {
++        unsigned i = s.y * m_poly_frame_width + x;
++        if (s.pixels.pen & 0x80000000U) {
++            const u8 coverage = (s.pixels.pen >> 16) & 0xff;
++            if (s.pixels.depth < edge_depth[i] || (s.pixels.depth == edge_depth[i] && coverage > edge_coverage[i])) {
++                edge_depth[i] = s.pixels.depth; edge_pens[i] = s.pixels.pen & 0xffff; edge_coverage[i] = coverage;
++            }
++        } else if (s.pixels.depth < depth[i]) { depth[i] = s.pixels.depth; pens[i] = s.pixels.pen; }
++    }
++    for (int i = 0; i < m_framebuffer_size; ++i)
++        if (edge_depth[i] <= depth[i] && (((i % m_poly_frame_width) * 73 + (i / m_poly_frame_width) * 151) & 255) < edge_coverage[i])
++            pens[i] = edge_pens[i];
++}
++void namcos21_3d_device::resolve_visible_gpu()
++{
++    if (m_gpu_visible_valid && !m_gpu_resolved) {
++        resolve_spans(m_gpu_visible, m_poly_framebuffer_pens2.get(), m_poly_framebuffer_z2.get());
++        m_gpu_resolved = true;
++    }
++}
++void namcos21_3d_device::device_pre_save()
++{
++    resolve_visible_gpu();
++    if (m_gpu_collect) resolve_spans(m_gpu_work, m_poly_framebuffer_pens.get(), m_poly_framebuffer_z.get());
++}
++void namcos21_3d_device::device_post_load()
++{
++    m_wire_stabilizer.clear();
++    m_gpu_collect = m_gpu_visible_valid = m_gpu_resolved = false;
++    m_gpu_work.clear(); m_gpu_visible.clear();
++    starblade_gpu::clear();
++}
+diff --git a/src/mame/namco/namcos21_3d.h b/src/mame/namco/namcos21_3d.h
+index 64352b983f1..ab4e1ee7b1d 100644
+--- a/src/mame/namco/namcos21_3d.h
++++ b/src/mame/namco/namcos21_3d.h
+@@ -4,6 +4,8 @@
+ #define MAME_NAMCO_NAMCOS21_3D_H
+ 
+ #pragma once
++#include "starblade-gpu-frame.h"
++#include "starblade-wire-stabilizer.h"
+ 
+ class namcos21_3d_device : public device_t
+ {
+@@ -24,6 +26,10 @@ public:
+ 		m_penmask = (m_num_palettes == 0x20) ? 0x1f00 : 0x1e00;
+ 	}
+ 
++	void set_solvalou_wide_effects(bool enabled) { m_solvalou_wide_effects = enabled; }
++	void set_projection_scale(double x, double y) { m_projection_scale_x = x; m_projection_scale_y = y; }
++	void set_wireframe(bool wireframe) { m_wireframe = wireframe; }
++	void set_wire_width(double width) { m_wire_width = std::clamp(width, 1.0, 2.0); }
+ 	void set_depth_reverse(bool reverse) { m_depth_reverse = reverse; }
+ 
+ 	int width() { return m_poly_frame_width; }
+@@ -31,7 +37,10 @@ public:
+ 
+ 	void copy_visible_poly_framebuffer(bitmap_ind16 &bitmap, const rectangle &cliprect);
+ 	void swap_and_clear_poly_framebuffer();
+-	u16 *get_visible_zbuffer() { return m_poly_framebuffer_z2.get(); }
++	u16 *get_visible_zbuffer() { resolve_visible_gpu(); return m_poly_framebuffer_z2.get(); }
++    void enable_gpu_spans() { m_gpu_capable = true; }
++    bool gpu_frame() const { return m_gpu_visible_valid; }
++    const std::vector<starblade_gpu::scan_span> &gpu_spans() const { return m_gpu_visible; }
+ 
+ 	void draw_direct_quad(const u16 *source, u16 color);
+ 	int draw_quads(const u16 *source, const u8 *pointram, const u32 ptram_size, u32 quad_idx);
+@@ -39,8 +48,14 @@ public:
+ protected:
+ 	// device-level overrides
+ 	virtual void device_start() override ATTR_COLD;
++    virtual void device_pre_save() override;
++    virtual void device_post_load() override;
+ 
+ private:
++    bool m_gpu_capable = false, m_gpu_collect = false, m_gpu_visible_valid = false, m_gpu_resolved = false;
++    std::vector<starblade_gpu::scan_span> m_gpu_work, m_gpu_visible;
++    void resolve_visible_gpu();
++    void resolve_spans(const std::vector<starblade_gpu::scan_span> &, u16 *, u16 *);
+ 	struct n21_vertex
+ 	{
+ 		double x,y;
+@@ -54,14 +69,16 @@ private:
+ 	};
+ 
+ 	void renderscanline_flat(const edge *e1, const edge *e2, int sy, u16 color, int zsort);
++	void renderline(const n21_vertex &v0, const n21_vertex &v1, u16 color, int zsort);
+ 	void rendertri(const n21_vertex *v0, const n21_vertex *v1, const n21_vertex *v2, u16 color, int zsort);
+-	void blit_single_quad(int sx[4], int sy[4], int zcode[4], u16 color);
++	void blit_single_quad(int sx[4], int sy[4], int zcode[4], u16 color, const n21_vertex *stable = nullptr);
+ 
+ 	std::unique_ptr<u16[]> m_poly_framebuffer_pens;
+ 	std::unique_ptr<u16[]> m_poly_framebuffer_z;
+ 	std::unique_ptr<u16[]> m_poly_framebuffer_pens2;
+ 	std::unique_ptr<u16[]> m_poly_framebuffer_z2;
+ 
++	bool m_solvalou_wide_effects = false;
+ 	int m_num_palettes;
+ 	int m_penmask;
+ 	bool m_depth_reverse;
+@@ -69,6 +86,12 @@ private:
+ 	int m_poly_frame_width;
+ 	int m_poly_frame_height;
+ 	int m_framebuffer_size;
++	double m_projection_scale_x = 1.0;
++	double m_projection_scale_y = 1.0;
++	bool m_wireframe = false;
++	double m_wire_width = 1.5;
++    starblade_wire_stabilizer m_wire_stabilizer;
++    int draw_stable_quads(const u16 *, const u8 *, u32, u32);
+ };
+ 
+ DECLARE_DEVICE_TYPE(NAMCOS21_3D, namcos21_3d_device)
+diff --git a/src/mame/namco/namcos21_c67.cpp b/src/mame/namco/namcos21_c67.cpp
+index 91cb24c533d..3f88677d318 100644
+--- a/src/mame/namco/namcos21_c67.cpp
++++ b/src/mame/namco/namcos21_c67.cpp
+@@ -274,6 +274,8 @@ Palette:
+ #include "namco_c148.h"
+ #include "namco_dsp.h"
+ #include "namcos21_3d.h"
++#include "starblade-ui-scanlines.h"
++#include "starblade-ui-glow.h"
+ #include "namcos21_dsp_c67.h"
+ 
+ #include "namco_c355spr.h"
+@@ -289,6 +291,8 @@ Palette:
+ #include "emupal.h"
+ #include "screen.h"
+ #include "speaker.h"
++#include "starblade-fire.h"
++#include "starblade-continue.h"
+ 
+ #include "solvalou.lh"
+ 
+@@ -327,6 +331,18 @@ public:
+ 	void starblad(machine_config &config);
+ 
+ 	void init_solvalou();
++    starblade_fire_state m_fire;
++    starblade_continue_state m_continue;
++    bool m_title_visible = false, m_hud_visible = false;
++    u8 start_buttons_r()
++    {
++        return m_continue.read(ioport("MCUB")->read(), m_title_visible, m_hud_visible);
++    }
++    u8 fire_buttons_r()
++    {
++        return m_fire.read(ioport("MCUH")->read(), m_screen->frame_number(),
++            ioport("HD_FIRE_MODE")->read() & 3, ioport("HD_FIRE_RATE")->read() & 3);
++    }
+ 
+ protected:
+ 	virtual void video_start() override ATTR_COLD;
+@@ -355,6 +371,20 @@ private:
+ 
+ 	u16 m_video_enable = 0;
+ 	bitmap_ind16 m_mix_layer0_bitmap;
++	bool m_hd_enabled = false;
++	bool m_solvalou_hd = false;
++	std::vector<u16> m_solvalou_source_pixels;
++	bitmap_ind16 m_hd_bitmap[2];
++	int m_hd_width = 1920;
++	unsigned m_hd_frame = 0;
++	unsigned m_hd_present_frame = 0;
++	u32 screen_update_hd(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
++	void mix_hd_sprites(bitmap_ind16 &bitmap, int priority, bool depth_test);
++	void mix_hd_wide_sprites(bitmap_ind16 &bitmap, int priority, bool depth_test);
++	unsigned m_ui_scanlines = 0;
++	bitmap_rgb32 m_hd_rgb_bitmap[2];
++	std::unique_ptr<starblade_ui_glow> m_ui_glow;
++    uint64_t m_gpu_serial = 0;
+ 
+ 	u16 video_enable_r();
+ 	void video_enable_w(offs_t offset, u16 data, u16 mem_mask = ~0);
+@@ -390,6 +420,18 @@ private:
+ void namcos21_c67_state::video_start()
+ {
+ 	m_screen->register_screen_bitmap(m_mix_layer0_bitmap);
++	if (m_hd_enabled)
++	{
++		m_ui_glow = std::make_unique<starblade_ui_glow>();
++		for (auto &surface : m_hd_rgb_bitmap)
++			surface.allocate(496, 480);
++		for (auto &surface : m_hd_bitmap)
++		{
++			surface.allocate(m_hd_width, 1080);
++			surface.set_palette(m_palette->palette());
++			surface.fill(0xff);
++		}
++	}
+ 
+ 	save_item(NAME(m_video_enable));
+ }
+@@ -463,6 +505,8 @@ void namcos21_c67_state::mix_layer0_sprites(screen_device &screen, bitmap_ind16
+ 
+ u32 namcos21_c67_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
+ {
++	if (m_hd_enabled)
++		return screen_update_hd(screen, bitmap, cliprect);
+ 	// solvalou after POST, definitely blanks screen
+ 	if (!BIT(m_video_enable, 6))
+ 	{
+@@ -500,6 +544,205 @@ u32 namcos21_c67_state::screen_update(screen_device &screen, bitmap_ind16 &bitma
+ 	return 0;
+ }
+ 
++
++// StarBlade HD: polygons rasterize directly at 1920x1080. C355 sprites retain
++// the original 496x480 raster and map into a centred 1440x1080 (4:3) rectangle.
++// The original mix callback still resolves palette, shadow and priority rules.
++void namcos21_c67_state::mix_hd_sprites(bitmap_ind16 &bitmap, int priority, bool depth_test)
++{
++    const bitmap_ind16 &sprites = m_c355spr->render_bitmap();
++    const int width = bitmap.width();
++    const int left = (width - 1440) / 2;
++    const u16 *depth = m_namcos21_3d->get_visible_zbuffer();
++    const u16 colorbase = m_c355spr->gfx(0)->colorbase();
++    u16 pri[16];
++    for (int i = 0; i < 16; ++i)
++        pri[i] = i == 0 ? 0x7fc0 : pri[i - 1] / 1.24;
++    for (int sy = 0; sy < 480; ++sy)
++    {
++        const u16 *src = &sprites.pix(sy);
++        const int y0 = (sy * 1080 + 479) / 480;
++        const int y1 = ((sy + 1) * 1080 + 479) / 480;
++        for (int sx = 0; sx < 496; ++sx)
++        {
++            const u16 raw = src[sx];
++            if (raw == 0xffff || ((raw >> 12) & 3) != priority)
++                continue;
++            // ST2 tile 0x27a is the solid damage flash. Extend only its
++            // surviving edge pixels; the centre retains original sprite order.
++            const bool flash = priority == 3 && m_c355spr->effect_bitmap().pix(sy, sx) == 2;
++            const int x0 = flash && sx == 0 ? 0 : left + (sx * 1440 + 495) / 496;
++            const int x1 = flash && sx == 495 ? width : left + ((sx + 1) * 1440 + 495) / 496;
++            for (int y = y0; y < y1; ++y)
++            {
++                u16 *dst = &bitmap.pix(y);
++                const u16 *z = depth + y * width;
++                for (int x = x0; x < x1; ++x)
++                {
++                    u16 mixed = dst[x];
++                    u8 destpri = 0;
++                    if (!sprite_mix_callback(mixed, destpri, colorbase, raw & 0xfff, (raw >> 12) & 0xf, priority))
++                        continue;
++                    if (!depth_test || ((mixed & 0x5000) && pri[(mixed >> 8) & 0xf] <= z[x]) || mixed < 0x1000)
++                        dst[x] = m_ui_scanlines && priority == 3 && mixed >= 0x1000 && mixed < 0x2000
++                            && m_c355spr->effect_bitmap().pix(sy, sx) == 1 && y == y1 - 1
++                            ? 0x8000 | (mixed & 0xfff) : mixed;
++                }
++            }
++        }
++    }
++}
++
++// Scene sprites retain the original 496-pixel projection and pixel size.  The
++// auxiliary surface exposes the selected native coordinate range that the
++// arcade clip window discarded; it does not spread the 4:3 picture.
++void namcos21_c67_state::mix_hd_wide_sprites(bitmap_ind16 &bitmap, int priority, bool depth_test)
++{
++    const bitmap_ind16 &sprites = m_c355spr->auxiliary_bitmap();
++    const int width = bitmap.width();
++    const int left = (width - 1440) / 2;
++    const int auxiliary_width = sprites.width();
++    const int auxiliary_offset = (auxiliary_width - 496) / 2;
++    const int base = left - (auxiliary_offset * 1440 + 248) / 496;
++    const u16 *depth = m_namcos21_3d->get_visible_zbuffer();
++    const u16 colorbase = m_c355spr->gfx(0)->colorbase();
++    u16 pri[16];
++    for (int i = 0; i < 16; ++i)
++        pri[i] = i == 0 ? 0x7fc0 : pri[i - 1] / 1.24;
++    for (int sy = 0; sy < 480; ++sy)
++    {
++        const u16 *src = &sprites.pix(sy);
++        const int y0 = (sy * 1080 + 479) / 480;
++        const int y1 = ((sy + 1) * 1080 + 479) / 480;
++        for (int sx = 0; sx < auxiliary_width; ++sx)
++        {
++            const u16 raw = src[sx];
++            if (raw == 0xffff || ((raw >> 12) & 3) != priority)
++                continue;
++            const int x0 = std::max(0, base + (sx * 1440 + 495) / 496);
++            const int x1 = std::min(width, base + ((sx + 1) * 1440 + 495) / 496);
++            for (int y = y0; y < y1; ++y)
++            {
++                u16 *dst = &bitmap.pix(y);
++                const u16 *z = depth + y * width;
++                for (int x = x0; x < x1; ++x)
++                {
++                    u16 mixed = dst[x];
++                    u8 destpri = 0;
++                    if (!sprite_mix_callback(mixed, destpri, colorbase, raw & 0xfff, (raw >> 12) & 0xf, priority))
++                        continue;
++                    if (!depth_test || ((mixed & 0x5000) && pri[(mixed >> 8) & 0xf] <= z[x]) || mixed < 0x1000)
++                        dst[x] = mixed;
++                }
++            }
++        }
++    }
++}
++
++u32 namcos21_c67_state::screen_update_hd(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
++{
++    if (cliprect.top() == 0) m_hd_frame = m_hd_present_frame ^ 1U;
++    bitmap_ind16 &output = m_hd_bitmap[m_hd_frame];
++    m_c355spr->set_explosion_mode(!m_solvalou_hd && (ioport("HD_EXPLOSION_MODE")->read() & 1) != 0,
++        (ioport("HD_RENDER_STYLE")->read() & 1) != 0);
++    const rectangle native_clip(0, 495, 0, 479);
++    m_namcos21_3d->set_wireframe((ioport("HD_RENDER_STYLE")->read() & 1) != 0);
++    m_namcos21_3d->set_wire_width((ioport("HD_WIRE_WIDTH")->read() & 7) * 0.5);
++    m_namcos21_3d->set_wireframe((ioport("HD_RENDER_STYLE")->read() & 1) != 0);
++    starblade_gpu::requested = (ioport("HD_GPU")->read() & 1) != 0;
++    std::shared_ptr<const starblade_gpu::frame> completed_packet;
++    const bool gpu = starblade_gpu::requested && starblade_gpu::available && m_namcos21_3d->gpu_frame();
++    ++m_gpu_serial;
++    const unsigned glow_strength = m_solvalou_hd ? 0 : (ioport("HD_UI_GLOW")->read() & 3);
++    m_ui_scanlines = glow_strength ? 0 : (ioport("HD_UI")->read() & 3);
++    if (m_ui_scanlines)
++        for (int pen = 0; pen < 0x1000; ++pen)
++            m_palette->set_pen_color(0x8000 + pen,
++                starblade_scanline_color(m_palette->pen_color(0x1000 + pen), m_ui_scanlines));
++    if (!BIT(m_video_enable, 6))
++        output.fill(m_palette->black_pen());
++    else
++    {
++        output.fill(0xff);
++        screen.priority().fill(0, native_clip);
++        m_c355spr->build_sprite_list_and_render_sprites(native_clip);
++        m_title_visible = !m_solvalou_hd && m_c355spr->title_stars_present();
++        m_hud_visible = false;
++        for (int y = 40; y < 90 && !m_hud_visible && !m_solvalou_hd; ++y)
++            for (int x = 200; x < 300; ++x)
++                if (m_c355spr->effect_bitmap().pix(y, x) == 1)
++                { m_hud_visible = true; break; }
++        const u16 pri1 = (m_palette->read16_ext(0) >> 8) & 7;
++        if (gpu) {
++            auto packet = starblade_gpu::acquire_frame();
++            packet->serial = m_gpu_serial;
++            packet->solvalou_crop = m_solvalou_hd;
++            packet->solvalou_status = m_solvalou_hd && (ioport("SV_STATUS")->read() & 1);
++            packet->width = output.width();
++            packet->height = output.height();
++            packet->spans = m_namcos21_3d->gpu_spans();
++            packet->sprites.resize(496 * 480);
++            for (int y = 0; y < 480; ++y) for (int x = 0; x < 496; ++x)
++                packet->sprites[y * 496 + x] = m_c355spr->render_bitmap().pix(y, x) | (u32(m_c355spr->effect_bitmap().pix(y, x)) << 16);
++            packet->auxiliary_width = m_c355spr->auxiliary_bitmap().width();
++            const int auxiliary_offset = (packet->auxiliary_width - 496) / 2;
++            packet->auxiliary_base = (int(packet->width) - 1440) / 2
++                - (auxiliary_offset * 1440 + 248) / 496;
++            packet->wide_sprites.resize(packet->auxiliary_width * 480);
++            for (int y = 0; y < 480; ++y)
++                std::copy_n(&m_c355spr->auxiliary_bitmap().pix(y), packet->auxiliary_width,
++                    packet->wide_sprites.data() + y * packet->auxiliary_width);
++            const rgb_t *palette = m_palette->palette()->entry_list_adjusted();
++            packet->palette.assign(palette, palette + 0x9000);
++            packet->depth_test = pri1 != 0 && pri1 != 2;
++            packet->scanlines = m_ui_scanlines;
++            packet->glow_strength = glow_strength;
++            packet->wire_glow_radius = ioport("HD_WIRE_GLOW_RADIUS")->read() & 0x0f;
++            packet->wire_glow_level = ioport("HD_WIRE_GLOW_LEVEL")->read() & 0x03;
++            packet->wire_brightness = ioport("HD_WIRE_BRIGHTNESS")->read() & 0x03;
++            packet->vector_effect = (ioport("HD_VECTOR_EFFECT")->read() & ioport("HD_RENDER_STYLE")->read() & 1);
++            completed_packet = std::move(packet);
++        } else {
++            mix_hd_wide_sprites(output, 2, false);
++            m_namcos21_3d->copy_visible_poly_framebuffer(output, output.cliprect());
++            mix_hd_wide_sprites(output, 0, pri1 != 0 && pri1 != 2);
++            mix_hd_wide_sprites(output, 3, false);
++            mix_hd_sprites(output, 3, false);
++        }
++    }
++    if (m_solvalou_hd && !gpu) {
++        const int width = output.width();
++        m_solvalou_source_pixels.resize(width * 1080);
++        for (int y = 0; y < 1080; ++y)
++            std::copy_n(&output.pix(y), width, m_solvalou_source_pixels.data() + y * width);
++        const bool status = (ioport("SV_STATUS")->read() & 1) != 0;
++        starblade_gpu::solvalou_present(m_solvalou_source_pixels, width, status,
++            [&](u16 pen) -> u32 { return m_palette->pen_color(pen); });
++        for (int y = 0; y < 1080; ++y)
++            std::copy_n(m_solvalou_source_pixels.data() + y * width, width, &output.pix(y));
++    }
++    // Maintain the ordinary screen bitmap for MAME's native snapshot path.
++    for (int y = cliprect.top(); y <= cliprect.bottom(); ++y)
++        for (int x = cliprect.left(); x <= cliprect.right(); ++x)
++            bitmap.pix(y, x) = output.pix(y * 1080 / 480, x * m_hd_width / 496);
++    if (cliprect.bottom() == 479)
++    {
++        starblade_gpu::publish(output, std::move(completed_packet));
++        m_hd_present_frame = m_hd_frame;
++        screen.set_presentation_bitmap(m_hd_bitmap[m_hd_present_frame]);
++        screen.set_presentation_overlay(nullptr);
++        if (glow_strength && BIT(m_video_enable, 6))
++        {
++            auto &rgb = m_hd_rgb_bitmap[m_hd_present_frame];
++            if (!gpu || !starblade_gpu::glow_available)
++                m_ui_glow->render(rgb, m_c355spr->render_bitmap(),
++                    m_c355spr->effect_bitmap(), m_palette->palette()->entry_list_adjusted(), glow_strength);
++            screen.set_presentation_overlay(&rgb);
++        }
++    }
++    return 0;
++}
++
+ u16 namcos21_c67_state::video_enable_r()
+ {
+ 	return m_video_enable;
+@@ -617,6 +860,72 @@ void namcos21_c67_state::c140_map(address_map &map)
+ /*************************************************************/
+ 
+ static INPUT_PORTS_START( starblad )
++    PORT_START("HD_FIRE_MODE")
++    PORT_CONFNAME(0x03, 0x01, "Fire Mode")
++    PORT_CONFSETTING(0x00, "Single shot")
++    PORT_CONFSETTING(0x01, "Hold to fire")
++    PORT_CONFSETTING(0x02, "Automatic")
++    PORT_START("HD_FIRE_RATE")
++    PORT_CONFNAME(0x03, 0x00, "Rapid Fire Speed")
++    PORT_CONFSETTING(0x00, "30 shots/sec")
++    PORT_CONFSETTING(0x02, "20 shots/sec")
++	PORT_START("HD_GPU")
++    PORT_CONFNAME(0x01, 0x01, "Polygon Renderer")
++    PORT_CONFSETTING(0x00, "CPU")
++    PORT_CONFSETTING(0x01, "GPU")
++	PORT_START("HD_EXPLOSION_MODE")
++    PORT_CONFNAME(0x01, 0x00, "Explosion Effect")
++    PORT_CONFSETTING(0x00, "Original bitmap")
++    PORT_CONFSETTING(0x01, "Polygon shards")
++	PORT_START("HD_RENDER_STYLE")
++    PORT_CONFNAME(0x01, 0x00, "Render Style")
++    PORT_CONFSETTING(0x00, "Solid")
++    PORT_CONFSETTING(0x01, "3D Wireframe")
++	PORT_START("HD_WIRE_GLOW_RADIUS")
++    PORT_CONFNAME(0x0f, 0x00, "Wire Glow Radius")
++    PORT_CONFSETTING(0x00, "0 px")
++    PORT_CONFSETTING(0x01, "1 px")
++    PORT_CONFSETTING(0x02, "2 px")
++    PORT_CONFSETTING(0x03, "3 px")
++    PORT_CONFSETTING(0x04, "4 px")
++    PORT_CONFSETTING(0x05, "5 px")
++    PORT_CONFSETTING(0x06, "6 px")
++    PORT_CONFSETTING(0x07, "7 px")
++    PORT_CONFSETTING(0x08, "8 px")
++    PORT_CONFSETTING(0x09, "9 px")
++    PORT_CONFSETTING(0x0a, "10 px")
++	PORT_START("HD_WIRE_GLOW_LEVEL")
++    PORT_CONFNAME(0x03, 0x02, "Wire Glow Brightness")
++    PORT_CONFSETTING(0x01, "Low")
++    PORT_CONFSETTING(0x02, "Normal")
++    PORT_CONFSETTING(0x03, "High")
++	PORT_START("HD_WIRE_WIDTH")
++    PORT_CONFNAME(0x07, 0x03, "Wire Width")
++    PORT_CONFSETTING(0x02, "1 px")
++    PORT_CONFSETTING(0x03, "1.5 px")
++    PORT_CONFSETTING(0x04, "2 px")
++	PORT_START("HD_WIRE_BRIGHTNESS")
++    PORT_CONFNAME(0x03, 0x02, "Wire Brightness")
++    PORT_CONFSETTING(0x01, "80%")
++    PORT_CONFSETTING(0x02, "100%")
++    PORT_CONFSETTING(0x03, "125%")
++    PORT_CONFSETTING(0x00, "160%")
++	PORT_START("HD_VECTOR_EFFECT")
++    PORT_CONFNAME(0x01, 0x01, "Vector Monitor (GPU Wireframe)")
++    PORT_CONFSETTING(0x00, "Off")
++    PORT_CONFSETTING(0x01, "On")
++	PORT_START("HD_UI_GLOW")
++	PORT_CONFNAME(0x03, 0x01, "UI Glow")
++	PORT_CONFSETTING(0x00, "Off")
++	PORT_CONFSETTING(0x01, "Weak")
++	PORT_CONFSETTING(0x02, "Medium")
++	PORT_CONFSETTING(0x03, "Strong")
++	PORT_START("HD_UI")
++	PORT_CONFNAME(0x03, 0x00, "UI Scanlines")
++	PORT_CONFSETTING(0x00, "Off")
++	PORT_CONFSETTING(0x01, "Weak")
++	PORT_CONFSETTING(0x02, "Medium")
++	PORT_CONFSETTING(0x03, "Strong")
+ 	PORT_START("MCUB")     /* 63B05Z0 - PORT B */
+ 	PORT_BIT( 0x3f, IP_ACTIVE_LOW, IPT_UNUSED )
+ 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_START2 )
+@@ -691,6 +1000,8 @@ INPUT_PORTS_END
+ 
+ static INPUT_PORTS_START( solvalou )
+ 	PORT_INCLUDE(starblad)
++	PORT_START("SV_STATUS")
++	PORT_BIT( 1, IP_ACTIVE_LOW, IPT_OTHER ) PORT_NAME("Status overlay (toggle)") PORT_TOGGLE PORT_CODE(KEYCODE_Z) PORT_CODE(KEYCODE_C) PORT_CODE(MOUSECODE_BUTTON3) PORT_CODE(JOYCODE_BUTTON3)
+ 
+ 	PORT_MODIFY("AN2")
+ 	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_Y ) PORT_MINMAX(0x01,0xff) PORT_SENSITIVITY(25) PORT_KEYDELTA(16)
+@@ -795,6 +1106,9 @@ void namcos21_c67_state::vblank_irq(int state)
+ 
+ void namcos21_c67_state::machine_reset()
+ {
++    m_fire = {};
++    m_continue = {};
++    m_title_visible = m_hud_visible = false;
+ 	// Initialise the bank select in the sound CPU
+ 	m_audiobank->set_entry(0); // Page in bank 0
+ 
+@@ -807,6 +1121,21 @@ void namcos21_c67_state::machine_reset()
+ 
+ void namcos21_c67_state::machine_start()
+ {
++    save_item(NAME(m_fire.previous));
++    save_item(NAME(m_fire.pulse));
++    save_item(NAME(m_fire.repeat));
++    save_item(NAME(m_fire.previous_mode));
++    save_item(NAME(m_fire.previous_rate));
++    save_item(NAME(m_fire.frame));
++    save_item(NAME(m_fire.next_repeat));
++    save_item(NAME(m_continue.used));
++    save_item(NAME(m_continue.started));
++    save_item(NAME(m_continue.hud_seen));
++    save_item(NAME(m_continue.previous_pressed));
++    save_item(NAME(m_continue.blocked_press));
++    save_item(NAME(m_continue.title_active));
++    save_item(NAME(m_title_visible));
++    save_item(NAME(m_hud_visible));
+ 	u32 max = memregion("audiocpu")->bytes() / 0x4000;
+ 	for (int i = 0; i < 0x10; i++)
+ 		m_audiobank->configure_entry(i, memregion("audiocpu")->base() + (i % max) * 0x4000);
+@@ -907,7 +1236,26 @@ void namcos21_c67_state::aircomb(machine_config &config)
+ void namcos21_c67_state::starblad(machine_config &config)
+ {
+ 	namcos21(config);
++    m_c68->in_ph_callback().set(FUNC(namcos21_c67_state::fire_buttons_r));
++    m_c68->in_pb_callback().set(FUNC(namcos21_c67_state::start_buttons_r));
+ 	m_namcos21_dsp_c67->set_gametype(namcos21_dsp_c67_device::NAMCOS21_STARBLADE);
++	m_hd_enabled = true;
++	const bool four_three = std::getenv("STARBLADE_FOUR_THREE") != nullptr;
++	const bool ultrawide = !four_three && std::getenv("STARBLADE_ULTRAWIDE") != nullptr;
++	m_c355spr->set_effect_filter(starblade_effect_tile);
++	const int auxiliary_width = std::getenv("STARBLADE_RENDER_WIDTH") ? ((std::clamp(std::atoi(std::getenv("STARBLADE_RENDER_WIDTH")),1920,4096)*496+1439)/1440+1)&~1 : four_three ? 496 : ultrawide ? 890 : 662;
++	m_c355spr->set_auxiliary_wide(auxiliary_width, (auxiliary_width - 496) / 2, starblade_scene_tile);
++	// Display-only dimmed UI colours, outside the emulated palette RAM.
++	m_palette->set_entries(0x9000);
++	m_hd_width = four_three ? 1440 : ultrawide ? 2580 : 1920;
++	if (const char *w=std::getenv("STARBLADE_RENDER_WIDTH")) m_hd_width=std::clamp(std::atoi(w),1920,4096) & ~1;
++	m_screen->set_physical_aspect(four_three ? 4 : ultrawide ? 43 : 16,
++		four_three ? 3 : ultrawide ? 18 : 9);
++	m_namcos21_3d->set_framebuffer_size(m_hd_width, 1080);
++	// 4:3 content remains 1440x1080; only the side field changes width.
++	m_namcos21_3d->set_projection_scale(1440.0 / 496.0, 1080.0 / 480.0);
++    m_namcos21_3d->enable_gpu_spans();
++	m_namcos21_3d->set_wireframe(std::getenv("STARBLADE_WIREFRAME") != nullptr);
+ }
+ 
+ void namcos21_c67_state::cybsled(machine_config &config)
+@@ -933,6 +1281,29 @@ void namcos21_c67_state::solvalou(machine_config &config)
+ 	m_namcos21_dsp_c67->set_gametype(namcos21_dsp_c67_device::NAMCOS21_SOLVALOU);
+ 
+ 	m_namcos21_3d->set_num_palettes(0x20);
++    m_solvalou_hd = true;
++    m_c68->in_ph_callback().set(FUNC(namcos21_c67_state::fire_buttons_r));
++    m_namcos21_3d->set_solvalou_wide_effects(true);
++    m_hd_enabled = true;
++    const bool four_three = std::getenv("STARBLADE_FOUR_THREE") != nullptr;
++    const bool ultrawide = !four_three && std::getenv("STARBLADE_ULTRAWIDE") != nullptr;
++    m_hd_width = four_three ? 1440 : ultrawide ? 2580 : 1920;
++	if (const char *w=std::getenv("STARBLADE_RENDER_WIDTH")) m_hd_width=std::clamp(std::atoi(w),1920,4096) & ~1;
++    m_screen->set_physical_aspect(four_three ? 4 : ultrawide ? 43 : 16,
++        four_three ? 3 : ultrawide ? 18 : 9);
++    m_palette->set_entries(0x9000);
++    m_namcos21_3d->set_framebuffer_size(m_hd_width, 1080);
++    m_namcos21_3d->set_projection_scale(1440.0 / 496.0, 1080.0 / 480.0);
++    m_namcos21_3d->enable_gpu_spans();
++    // Allocate the shared compositor's effect mask without StarBlade tile tags.
++    m_c355spr->set_effect_filter([](u32, int) -> u8 { return 0; });
++    // Priority 0/2 scene sprites use the same projection as the polygons.
++    // Preserve the original HUD and all central clipping, but reveal existing
++    // sprite pixels in the side margins for every priority (including HUD).
++    m_c355spr->set_reveal_sprite_edges(true);
++    const int auxiliary_width=((m_hd_width*496+1439)/1440+1)&~1;
++    m_c355spr->set_auxiliary_wide(auxiliary_width, (auxiliary_width-496)/2,
++        [](u32, int priority, int) -> u8 { return (priority & 3) == 3 ? 3 : 1; });
+ }
+ 
+ 
+@@ -1296,7 +1667,7 @@ void namcos21_c67_state::init_solvalou()
+ GAME( 1991, starblad,  0,        starblad, starblad,   namcos21_c67_state, empty_init,    ROT0,    "Namco", "Starblade (ST2, World)",   MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
+ GAME( 1991, starbladj, starblad, starblad, starblad,   namcos21_c67_state, empty_init,    ROT0,    "Namco", "Starblade (ST1, Japan)",   MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
+ 
+-GAMEL(1991, solvalou,  0,        solvalou, solvalou,   namcos21_c67_state, init_solvalou, ROT0,    "Namco", "Solvalou (SV1, Japan)",    MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE, layout_solvalou )
++GAME(1991, solvalou,  0,        solvalou, solvalou,   namcos21_c67_state, init_solvalou, ROT0,    "Namco", "Solvalou (SV1, Japan)",    MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
+ 
+ GAME( 1992, aircomb,   0,        aircomb,  aircomb,    namcos21_c67_state, empty_init,    ROT0,    "Namco", "Air Combat (AC2, US)",     MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE ) // There's code for a SCI, is it even possible to play multiplayer?
+ GAME( 1992, aircombj,  aircomb,  aircomb,  aircomb,    namcos21_c67_state, empty_init,    ROT0,    "Namco", "Air Combat (AC1, Japan)",  MACHINE_IMPERFECT_GRAPHICS | MACHINE_SUPPORTS_SAVE )
+diff --git a/src/mame/namco/namcos22_v.cpp b/src/mame/namco/namcos22_v.cpp
+index d4cba543278..bb9bd380c94 100644
+--- a/src/mame/namco/namcos22_v.cpp
++++ b/src/mame/namco/namcos22_v.cpp
+@@ -8,6 +8,8 @@
+ 
+ #include "emu.h"
+ #include "namcos22.h"
++#include "system22-gpu.h"
++#include "system22-profile.h"
+ 
+ #include "video.h"
+ 
+@@ -316,7 +318,17 @@ void namcos22_renderer::poly3d_drawquad(screen_device &screen, bitmap_rgb32 &bit
+ 	const int cx = 320 + node->data.quad.vx;
+ 	const int cy = 240 + node->data.quad.vy;
+ 	m_cliprect.set(cx + node->data.quad.vl, cx - node->data.quad.vr - 1, cy + node->data.quad.vu, cy - node->data.quad.vd - 1);
+-	m_cliprect &= screen.visible_area();
++	if (system22_gpu::collecting && !m_state.m_is_ss22) {
++        const int margin=int(std::ceil((system22_gpu::width-1440)/4.5))+system22_gpu::rotation_extra_x;
++        if (m_cliprect.min_x <= 8 && m_cliprect.max_x >= 631) {
++            m_cliprect.min_x -= margin; m_cliprect.max_x += margin;
++            if (m_cliprect.min_y <= 8 && m_cliprect.max_y >= 471) {
++                m_cliprect.min_y -= system22_gpu::rotation_extra_y;
++                m_cliprect.max_y += system22_gpu::rotation_extra_y;
++            }
++        }
++        m_cliprect &= rectangle(-margin,639+margin,-system22_gpu::rotation_extra_y,479+system22_gpu::rotation_extra_y);
++    } else m_cliprect &= screen.visible_area();
+ 
+ 	// non-direct case: project and z-clip
+ 	if (!direct)
+@@ -370,7 +382,8 @@ void namcos22_renderer::poly3d_drawquad(screen_device &screen, bitmap_rgb32 &bit
+ 	const int cz_adjust = node->data.quad.cz_adjust;
+ 	const int objectflags = node->data.quad.objectflags;
+ 
+-	namcos22_object_data &extra = object_data().next();
++	namcos22_object_data gpu_extra;
++	namcos22_object_data &extra = (system22_gpu::collecting && !m_state.m_is_ss22) ? gpu_extra : object_data().next();
+ 
+ 	extra.destbase = &bitmap;
+ 	extra.pfade_enabled = false;
+@@ -472,6 +485,8 @@ void namcos22_renderer::poly3d_drawquad(screen_device &screen, bitmap_rgb32 &bit
+ 		extra.fogfactor = 0;
+ 	}
+ 
++	#include "system22-gpu-capture.inc"
++
+ 	if (m_state.m_is_ss22)
+ 		dispatch_scanline_poly(&namcos22_renderer::renderscanline_poly_ss22, clipverts, clipv);
+ 	else
+@@ -2263,6 +2278,7 @@ void namcos22_state::draw_text_layer(screen_device &screen, bitmap_rgb32 &bitmap
+ 	m_text_tilemap->set_palette_offset(m_text_palbase);
+ 
+ 	m_text_tilemap->draw(screen, *m_mix_bitmap, cliprect, 0, 2, 3);
++	#include "system22-gpu-text.inc"
+ 	namcos22_mix_text_layer(screen, bitmap, cliprect);
+ }
+ 
+@@ -2615,15 +2631,16 @@ u32 namcos22_state::screen_update_namcos22(screen_device &screen, bitmap_rgb32 &
+ 	update_mixer();
+ 	update_palette();
+ 	screen.priority().fill(0, cliprect);
++	#include "system22-gpu-begin.inc"
+ 
+ 	// background color
+ 	const int bg_color = m_bg_palbase | 0xff;
+ 	bitmap.fill(m_palette->pen(bg_color), cliprect);
+ 
+ 	// layers
+-	draw_polygons();
+-	m_poly->render_scene(screen, bitmap);
+-	draw_text_layer(screen, bitmap, cliprect); // text layer + final mix
++	{ system22_profile::scope stage(6); draw_polygons(); }
++	{ system22_profile::scope stage(7); m_poly->render_scene(screen, bitmap); }
++	{ system22_profile::scope stage(8); draw_text_layer(screen, bitmap, cliprect); } // text layer + final mix
+ 
+ 	return 0;
+ }
+diff --git a/src/mame/sega/model1.h b/src/mame/sega/model1.h
+index fcbc31c5eae..0c55872786d 100644
+--- a/src/mame/sega/model1.h
++++ b/src/mame/sega/model1.h
+@@ -75,6 +75,7 @@ public:
+ 		float x = 0, y = 0, z = 0;
+ 		float xx = 0, yy = 0;
+ 		spoint_t s;
++		float hd_x = 0, hd_y = 0;
+ 	};
+ 
+ 	class quad_t
+@@ -150,6 +151,7 @@ protected:
+ 	void model1_paletteram_w(offs_t offset, u16 data, u16 mem_mask = ~0);
+ 
+ 	uint32_t screen_update_model1(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
++	uint32_t screen_update_model1_hd(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+ 	void screen_vblank_model1(int state);
+ 
+ 	struct lightparam_t
+@@ -325,6 +327,7 @@ protected:
+ 	static void fill_slope(bitmap_rgb32 &bitmap, view_t *view, int color, int32_t x1, int32_t x2, int32_t sl1, int32_t sl2, int32_t y1, int32_t y2, int32_t *nx1, int32_t *nx2);
+ 	static void fill_line(bitmap_rgb32 &bitmap, view_t *view, int color, int32_t y, int32_t x1, int32_t x2);
+ 	void        fill_quad(bitmap_rgb32 &bitmap, view_t *view, const quad_t& q) const;
++	void        fill_quad_native(bitmap_rgb32 &bitmap, view_t *view, const quad_t& q) const;
+ 
+ 	void    fclip_push_quad_next(int level, quad_t& q, point_t *p1, point_t *p2, point_t *p3, point_t *p4);
+ 	void    fclip_push_quad(int level, quad_t& q);
+@@ -352,6 +355,7 @@ protected:
+ 	// cat1 HUD tilemaps, but only through "background" HUD pixels (transparent or
+ 	// near-black); bright HUD features still occlude them.  Snapshot the HUD
+ 	// before the above-HUD pass and restore the feature pixels afterwards.
++	bitmap_rgb32 m_hd_bitmap, m_hd_overlay, m_hd_background;
+ 	int m_overlay_stride = 0;
+ 	std::unique_ptr<uint8_t[]>  m_overlay_block;
+ 	std::unique_ptr<uint32_t[]> m_overlay_hud_snapshot;
+diff --git a/src/mame/sega/model1_v.cpp b/src/mame/sega/model1_v.cpp
+index e386603c386..101a6159787 100644
+--- a/src/mame/sega/model1_v.cpp
++++ b/src/mame/sega/model1_v.cpp
+@@ -3,6 +3,7 @@
+ 
+ #include "emu.h"
+ #include "model1.h"
++#include "model1-hd.h"
+ 
+ #include "cpu/mb86233/mb86233.h"
+ 
+@@ -80,16 +81,16 @@ void model1_state::view_t::project_point(point_t *p) const
+ {
+ 	p->xx = p->x / p->z;
+ 	p->yy = p->y / p->z;
+-	p->s.x = xc + (p->xx * zoomx + viewx);
+-	p->s.y = yc - (p->yy * zoomy + viewy);
++	p->s.x = p->hd_x = xc + (p->xx * zoomx + viewx);
++	p->s.y = p->hd_y = yc - (p->yy * zoomy + viewy);
+ }
+ 
+ void model1_state::view_t::project_point_direct(point_t *p) const
+ {
+ 	p->xx = p->x /*/ p->z*/;
+ 	p->yy = p->y /*/ p->z*/;
+-	p->s.x = xc + p->xx;
+-	p->s.y = yc - p->yy;
++	p->s.x = p->hd_x = xc + p->xx;
++	p->s.y = p->hd_y = yc - p->yy;
+ }
+ 
+ void model1_state::draw_hline(bitmap_rgb32 &bitmap, int x1, int x2, int y, int color)
+@@ -198,6 +199,7 @@ void model1_state::fill_line(bitmap_rgb32 &bitmap, view_t *view, int color, int3
+ {
+ 	int xx1 = x1>>FRAC_SHIFT;
+ 	int xx2 = x2>>FRAC_SHIFT;
++	if (xx1 > xx2) std::swap(xx1, xx2);
+ 
+ 	if(y > view->y2 || y < view->y1)
+ 		return;
+@@ -279,7 +281,7 @@ static void draw_wireframe_line(bitmap_rgb32 &bitmap, const rectangle &clip, int
+ 	}
+ }
+ 
+-void model1_state::fill_quad(bitmap_rgb32 &bitmap, view_t *view, const quad_t& q) const
++void model1_state::fill_quad_native(bitmap_rgb32 &bitmap, view_t *view, const quad_t& q) const
+ {
+ 	spoint_t p[8];
+ 	int color = q.col;
+@@ -327,7 +329,7 @@ void model1_state::fill_quad(bitmap_rgb32 &bitmap, view_t *view, const quad_t& q
+ 
+ 	for (int i = 0; i < 4; i++)
+ 	{
+-		p[i].x = p[i+4].x = q.p[i]->s.x << FRAC_SHIFT;
++		p[i].x = p[i+4].x = q.p[i]->s.x * (1 << FRAC_SHIFT);
+ 		p[i].y = p[i+4].y = q.p[i]->s.y;
+ 	}
+ 
+@@ -627,9 +629,9 @@ uint16_t model1_state::scale_color(uint16_t color, float level) const
+ void model1_state::view_t::recompute_frustum()
+ {
+ 	a_left   = ( x1 - xc - viewx) / zoomx;
+-	a_right  = ( x2 - xc - viewx) / zoomx;
++	a_right  = ( x2 + (model1_hd::enabled ? 1 : 0) - xc - viewx) / zoomx;
+ 	a_bottom = (-y1 + yc - viewy) / zoomy;
+-	a_top    = (-y2 + yc - viewy) / zoomy;
++	a_top    = (-y2 - (model1_hd::enabled ? 1 : 0) + yc - viewy) / zoomy;
+ }
+ 
+ bool model1_state::fclip_isc_bottom(view_t *view, point_t *p)
+@@ -1403,8 +1405,10 @@ void model1_state::view_t::set_viewport(float xcenter, float ycenter, float xl,
+ 	yc = ycenter;
+ 	x1 = xl;
+ 	x2 = xr;
++	if (model1_hd::enabled && xl <= 8 && xr >= 487) { x1 -= model1_hd::extra; x2 += model1_hd::extra; }
+ 	y1 = yb;
+ 	y2 = yt;
++	if (model1_hd::enabled && xl <= 8 && xr >= 487 && yb <= 8 && yt >= 375) { y1 -= model1_hd::extra_y; y2 += model1_hd::extra_y; }
+ 
+ 	recompute_frustum();
+ }
+@@ -1728,8 +1732,8 @@ void model1_state::video_start()
+ 	m_pointdb = std::make_unique<point_t[]>(1000000*2);
+ 	m_quaddb  = std::make_unique<quad_t[]>(1000000);
+ 	m_quadind = make_unique_clear<quad_t *[]>(1000000);
+-	m_overlay_stride = m_screen->width();
+-	int overlay_pixels = m_overlay_stride * m_screen->height();
++	m_overlay_stride = model1_hd::enabled ? model1_hd::width : m_screen->width();
++	int overlay_pixels = m_overlay_stride * (model1_hd::enabled ? model1_hd::height : m_screen->height());
+ 	m_overlay_block = std::make_unique<uint8_t[]>(overlay_pixels);
+ 	m_overlay_hud_snapshot = std::make_unique<uint32_t[]>(overlay_pixels);
+ 
+@@ -1789,6 +1793,7 @@ void model1_state::apply_overlay_stencil(bitmap_rgb32 &bitmap, const rectangle &
+ 
+ uint32_t model1_state::screen_update_model1(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect)
+ {
++	if (model1_hd::enabled) return screen_update_model1_hd(screen, bitmap, cliprect);
+ 	model1_state::view_t *view = m_view.get();
+ #if 0
+ 	{
+@@ -1884,3 +1889,5 @@ void model1_state::screen_vblank_model1(int state)
+ 		LOGMASKED(LOG_TGP, "TGP: vsync\n");
+ 	}
+ }
++
++#include "model1-hd-render.inc"
+diff --git a/src/mame/sega/model2.h b/src/mame/sega/model2.h
+index fb59a4585ca..bdac576f508 100644
+--- a/src/mame/sega/model2.h
++++ b/src/mame/sega/model2.h
+@@ -225,6 +225,7 @@ protected:
+ 	void push_geo_data(u32 data);
+ 	void reset_model2_scsp();
+ 	u32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
++	u32 screen_update_gpu(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
+ 	void screen_vblank(int state);
+ 	void sound_ready_w(int state);
+ 	template <int TNum> TIMER_DEVICE_CALLBACK_MEMBER(model2_timer_cb);
+@@ -678,6 +679,7 @@ public:
+ 	bitmap_ind8 &fillmap() { return m_fillmap; }
+ 
+ 	void model2_3d_render(polygon *poly, const rectangle &cliprect);
++	void capture_gpu(polygon *poly);
+ 	void set_xoffset(int16_t xoffs) { m_xoffs = xoffs; }
+ 	void set_yoffset(int16_t yoffs) { m_yoffs = yoffs; }
+ 
+diff --git a/src/mame/sega/model2_v.cpp b/src/mame/sega/model2_v.cpp
+index 3a5bfa51ba8..2d2f4a85748 100644
+--- a/src/mame/sega/model2_v.cpp
++++ b/src/mame/sega/model2_v.cpp
+@@ -90,6 +90,8 @@
+ 
+ #include "emu.h"
+ #include "model2.h"
++#include "model2-gpu.h"
++#include "video.h"
+ #include "model2rd.ipp"
+ 
+ #include "corefloat.h"
+@@ -562,6 +564,7 @@ void model2_state::model2_3d_process_polygon(raster_state *raster, u32 attr)
+ 
+ void model2_renderer::model2_3d_render(polygon *poly, const rectangle &cliprect)
+ {
++    if (model2_gpu::collecting) { capture_gpu(poly); return; }
+ 	m2_poly_extra_data& extra = object_data().next();
+ 
+ 	/* select renderer based on attributes (bit14 = textured, bit13 = transparent) */
+@@ -696,6 +699,10 @@ void model2_state::render_polygons(bitmap_rgb32 &bitmap, const rectangle &clipre
+ 	// if the geometrizer hasn't presented a new frame, just copy the previous frame and bail
+ 	if (m_render_done)
+ 	{
++        if (model2_gpu::collecting) {
++            if (model2_gpu::previous) model2_gpu::collecting->polygons=model2_gpu::previous;
++            return;
++        }
+ 		copybitmap_trans(bitmap, m_renderer->destmap(), 0, 0, 0, 0, cliprect, 0x00000000);
+ 		return;
+ 	}
+@@ -876,8 +883,18 @@ void model2_state::model2_3d_push(raster_state *raster, u32 input)
+ 					// calculate clipping planes
+ 					float left_plane = float(raster->center[i][0] - raster->viewport[0]);
+ 					float right_plane = float(raster->viewport[2] - raster->center[i][0]);
++                    if (model2_gpu::enabled && model2_gpu::available
++                        && raster->viewport[0]+m_crtc_xoffset<=8 && raster->viewport[2]+m_crtc_xoffset>=487) {
++                        left_plane+=model2_gpu::margin(); right_plane+=model2_gpu::margin();
++                    }
+ 					float top_plane = float(raster->viewport[3] - raster->center[i][1]);
+ 					float bottom_plane = float(raster->center[i][1] - raster->viewport[1]);
++                    if (model2_gpu::enabled && model2_gpu::available
++                        && 384-raster->viewport[3]+m_crtc_yoffset<=8
++                        && 384-raster->viewport[1]+m_crtc_yoffset>=375) {
++                        top_plane+=model2_gpu::rotation_extra_y;
++                        bottom_plane+=model2_gpu::rotation_extra_y;
++                    }
+ 
+ 					raster->clip_plane[i][0].normal.x = 1.0f / std::hypot(1.0f, left_plane);
+ 					raster->clip_plane[i][0].normal.y = 0.0f;
+@@ -2422,6 +2439,9 @@ u32 model2_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, con
+ 		}
+ 	}
+ 
++    if (model2_gpu::enabled && model2_gpu::available && !m_render_test_mode)
++        return screen_update_gpu(screen,bitmap,cliprect);
++    model2_gpu::published.reset();
+ 	//logerror("--- frame ---\n");
+ 	bitmap.fill(m_palette->pen(0), cliprect);
+ 	m_sys24_bitmap.fill(0, cliprect);
+@@ -2450,3 +2470,5 @@ u32 model2_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, con
+ 
+ 	return 0;
+ }
++
++#include "model2-gpu-capture.inc"
+diff --git a/src/mame/sega/segaic24.cpp b/src/mame/sega/segaic24.cpp
+index f94f4b7a2e3..c1f8f6ad3a7 100644
+--- a/src/mame/sega/segaic24.cpp
++++ b/src/mame/sega/segaic24.cpp
+@@ -816,3 +816,11 @@ uint16_t segas24_mixer_device::get_reg(int reg)
+ {
+ 	return mixer_reg[reg];
+ }
++
++#include "model1-panorama.h"
++#include "model1-wide-tiles.inc"
++
++#include "model1-vr-panorama.inc"
++
++#include "model2-panorama.h"
++#include "model2-daytona-panorama.inc"
+diff --git a/src/mame/sega/segaic24.h b/src/mame/sega/segaic24.h
+index 9cc5c94179c..50c7f6f3120 100644
+--- a/src/mame/sega/segaic24.h
++++ b/src/mame/sega/segaic24.h
+@@ -11,6 +11,7 @@
+ #pragma once
+ 
+ #include "tilemap.h"
++#include "model1-panorama.h"
+ 
+ 
+ class segas24_tile_device : public device_t, public device_gfx_interface
+@@ -31,6 +32,7 @@ public:
+ 
+ 	uint16_t tile_r(offs_t offset);
+ 	void tile_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
++	bool draw_daytona_panorama_edges(bitmap_rgb32 &bitmap, int margin, const uint8_t *rom, size_t bytes);
+ 	uint16_t char_r(offs_t offset);
+ 	void char_w(offs_t offset, uint16_t data, uint16_t mem_mask = ~0);
+ 	void xhout_w(uint16_t data);
+@@ -38,6 +40,8 @@ public:
+ 
+ 	void draw(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, int layer, int pri, int flags);
+ 	void draw(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect, int layer, int pri, int flags);
++	void draw_wide_edges(bitmap_rgb32 &bitmap, int layer, int flags, int margin);
++	bool draw_vr_panorama_edges(bitmap_rgb32 &bitmap, int margin, const uint8_t *rom, size_t bytes, int *phase_out = nullptr);
+ 
+ 	auto xhout_write_callback() { return m_xhout_write_cb.bind(); }
+ 	auto xvout_write_callback() { return m_xvout_write_cb.bind(); }
+@@ -46,10 +50,13 @@ protected:
+ 	virtual void device_start() override ATTR_COLD;
+ 
+ private:
++	model1_hd::vr_panorama_tracker m_vr_panorama;
++
+ 	enum {
+ 		SYS24_TILES = 0x4000
+ 	};
+ 
++	model1_hd::vr_panorama_tracker m_daytona_panorama;
+ 	std::unique_ptr<uint16_t[]> char_ram;
+ 	std::unique_ptr<uint16_t[]> tile_ram;
+ 	int char_gfx_index;
+diff --git a/src/mame/shared/namco_c355spr.cpp b/src/mame/shared/namco_c355spr.cpp
+index 33e57240d31..90f07d72b48 100644
+--- a/src/mame/shared/namco_c355spr.cpp
++++ b/src/mame/shared/namco_c355spr.cpp
+@@ -53,6 +53,7 @@ without a 1-frame delay?
+ 
+ #include "emu.h"
+ #include "namco_c355spr.h"
++#include "../namco/starblade-explosion.h"
+ 
+ #include <algorithm>
+ 
+@@ -110,12 +111,23 @@ void namco_c355spr_device::zdrawgfxzoom(
+ {
+ 	if (!hsize || !vsize) return;
+ 	if (!gfx) return;
++	const bool track_effect = m_effect_filter && &dest_bmp == &m_renderbitmap;
++	const u8 effect = track_effect ? m_effect_filter(code, prival) : 0;
+ 
+ 	if (sprite_screen_width && sprite_screen_height)
+ 	{
+ 		const u32 pal = gfx->colorbase() + gfx->granularity() * (color % gfx->colors());
+ 
+ 		const u8 *source_base = gfx->get_data(code % gfx->elements());
++		if (m_explosion_mode && &dest_bmp == &m_auxiliary_bitmap
++			&& starblade_explosion_tile(code, prival, m_current_sprite_tiles))
++		{
++			starblade_draw_explosion_tile(dest_bmp, clip.left(), clip.top(), clip.right(), clip.bottom(),
++				hpos, vpos, sprite_screen_width, sprite_screen_height,
++				source_base, gfx->rowbytes(), gfx->width(), gfx->height(),
++				m_transpen, pal, prival, code, screen().frame_number(), m_explosion_wireframe);
++			return;
++		}
+ 
+ 		// compute sprite increment per screen pixel
+ 		int dx = (gfx->width() << 16) / sprite_screen_width;
+@@ -188,6 +200,8 @@ void namco_c355spr_device::zdrawgfxzoom(
+ 					if (c != m_transpen)
+ 					{
+ 						dest[x] = ((prival & 0xf) << 12) | ((pal + c) & 0xfff);
++						if (track_effect)
++							m_effect_bitmap.pix(y, x) = effect;
+ 					}
+ 					x_index += dx;
+ 				}
+@@ -262,7 +276,11 @@ void namco_c355spr_device::device_start()
+ 	m_pri_cb.resolve();
+ 
+ 	screen().register_screen_bitmap(m_renderbitmap);
++	if (m_auxiliary_filter)
++		m_auxiliary_bitmap.allocate(m_auxiliary_width, screen().height());
+ 	screen().register_screen_bitmap(m_screenbitmap);
++	if (m_effect_filter)
++		screen().register_screen_bitmap(m_effect_bitmap);
+ 
+ 	std::fill(std::begin(m_position), std::end(m_position), 0x0000);
+ 
+@@ -427,14 +445,30 @@ void namco_c355spr_device::build_sprite_list_and_render_sprites(const rectangle
+ void namco_c355spr_device::render_sprites(const rectangle cliprect)
+ {
+ 	m_renderbitmap.fill(0xffff, cliprect);
++	if (m_effect_filter)
++		m_effect_bitmap.fill(0, cliprect);
++	if (m_auxiliary_filter)
++		m_auxiliary_bitmap.fill(0xffff);
++	m_title_stars_present = false;
+ 	c355_sprite *sprite_ptr = m_spritelist.get();
+ 
+ 	while (sprite_ptr != m_sprite_end)
+ 	{
+ 		if (sprite_ptr->disable == false)
+ 		{
++			m_current_sprite_tiles = sprite_ptr->size;
+ 			rectangle clip = sprite_ptr->clip;
+ 			clip &= cliprect;
++			rectangle auxiliary_clip = clip;
++			if (m_auxiliary_filter)
++			{
++				auxiliary_clip = sprite_ptr->clip;
++				if (auxiliary_clip.left() <= cliprect.left() && auxiliary_clip.right() >= cliprect.right())
++					auxiliary_clip.setx(-m_auxiliary_xoffset, m_auxiliary_width - m_auxiliary_xoffset - 1);
++				auxiliary_clip.setx(auxiliary_clip.left() + m_auxiliary_xoffset,
++					auxiliary_clip.right() + m_auxiliary_xoffset);
++				auxiliary_clip &= m_auxiliary_bitmap.cliprect();
++			}
+ 			for (int ind = 0; ind < sprite_ptr->size; ind++)
+ 			{
+ 				if ((sprite_ptr->tile[ind] & 0x8000) == 0)
+@@ -457,16 +491,73 @@ void namco_c355spr_device::render_sprites(const rectangle cliprect)
+ 					int tile = sprite_ptr->tile[ind];
+ 					if (!m_code2tile.isnull())
+ 						tile = m_code2tile(tile);
++					const u32 code = tile + sprite_ptr->offset;
++					const u8 auxiliary = m_auxiliary_filter
++						? m_auxiliary_filter(code, sprite_ptr->pri, sprite_ptr->color) : 0;
++					// Keep the moving title stars and mark them for loading detection.
++					if (auxiliary == 2) m_title_stars_present = true;
++					const bool auxiliary_primary = auxiliary == 1 || auxiliary == 2;
+ 					zdrawgfxzoom(
+-						m_renderbitmap,
+-						clip,
++						auxiliary_primary ? m_auxiliary_bitmap : m_renderbitmap,
++						auxiliary_primary ? auxiliary_clip : clip,
+ 						gfx(0),
+ 						tile + sprite_ptr->offset,
+ 						sprite_ptr->color,
+ 						sprite_ptr->flipx, sprite_ptr->flipy,
+-						sprite_ptr->x[ind] >> 16, sprite_ptr->y[ind] >> 16,
++						(sprite_ptr->x[ind] >> 16) + (auxiliary_primary ? m_auxiliary_xoffset : 0), sprite_ptr->y[ind] >> 16,
+ 						sprite_ptr->zoomx[ind], sprite_ptr->zoomy[ind], sprite_ptr->pri,
+ 						sprite_screen_width, sprite_screen_height);
++					if ((auxiliary == 3 || m_reveal_sprite_edges) && m_auxiliary_xoffset > 0)
++					{
++						// The original scope remains in the 4:3 surface.  These
++						// two clipped draws fill only the previously hidden margins.
++						rectangle scope_clip = auxiliary_clip;
++						scope_clip.setx(0, m_auxiliary_width - 1);
++						const int scope_x = (sprite_ptr->x[ind] >> 16) + m_auxiliary_xoffset;
++						const int left_max = m_auxiliary_xoffset - 1;
++						const int right_min = m_auxiliary_width - m_auxiliary_xoffset;
++						for (const auto &margin : { rectangle(0, left_max, scope_clip.top(), scope_clip.bottom()),
++								rectangle(right_min, m_auxiliary_width - 1, scope_clip.top(), scope_clip.bottom()) })
++						{
++							zdrawgfxzoom(m_auxiliary_bitmap, margin, gfx(0), code,
++								sprite_ptr->color, sprite_ptr->flipx, sprite_ptr->flipy,
++								scope_x, sprite_ptr->y[ind] >> 16,
++								sprite_ptr->zoomx[ind], sprite_ptr->zoomy[ind], sprite_ptr->pri,
++								sprite_screen_width, sprite_screen_height);
++						}
++					}
++					if (auxiliary == 2)
++					{
++						// Project title stars away from the screen centre into the 16:9
++						// margins.  The central 4:3 draw above stays pixel-identical,
++						// while horizontal motion grows naturally toward the edges.
++						const int source_width = m_auxiliary_width - 2 * m_auxiliary_xoffset;
++						const int centre = m_auxiliary_width / 2;
++						const int source_x = (sprite_ptr->x[ind] >> 16) + m_auxiliary_xoffset;
++						const int projected_x = centre + (source_x - centre) * m_auxiliary_width / source_width;
++						const int left_max = std::min(auxiliary_clip.right(), m_auxiliary_xoffset - 1);
++						if (auxiliary_clip.left() <= left_max)
++						{
++							rectangle left_margin = auxiliary_clip;
++							left_margin.setx(auxiliary_clip.left(), left_max);
++							zdrawgfxzoom(m_auxiliary_bitmap, left_margin, gfx(0), code,
++								sprite_ptr->color, sprite_ptr->flipx, sprite_ptr->flipy,
++								projected_x, sprite_ptr->y[ind] >> 16,
++								sprite_ptr->zoomx[ind], sprite_ptr->zoomy[ind], sprite_ptr->pri,
++								sprite_screen_width, sprite_screen_height);
++						}
++						const int right_min = std::max(auxiliary_clip.left(), m_auxiliary_width - m_auxiliary_xoffset);
++						if (right_min <= auxiliary_clip.right())
++						{
++							rectangle right_margin = auxiliary_clip;
++							right_margin.setx(right_min, auxiliary_clip.right());
++							zdrawgfxzoom(m_auxiliary_bitmap, right_margin, gfx(0), code,
++								sprite_ptr->color, sprite_ptr->flipx, sprite_ptr->flipy,
++								projected_x, sprite_ptr->y[ind] >> 16,
++								sprite_ptr->zoomx[ind], sprite_ptr->zoomy[ind], sprite_ptr->pri,
++								sprite_screen_width, sprite_screen_height);
++						}
++					}
+ 				}
+ 			}
+ 		}
+diff --git a/src/mame/shared/namco_c355spr.h b/src/mame/shared/namco_c355spr.h
+index 152c81db638..25f986c01bf 100644
+--- a/src/mame/shared/namco_c355spr.h
++++ b/src/mame/shared/namco_c355spr.h
+@@ -60,6 +60,17 @@ public:
+ 	void clear_screen_bitmap() { m_screenbitmap.fill(0xffff); }
+ 	void clear_screen_bitmap(const rectangle cliprect) { m_screenbitmap.fill(0xffff, cliprect); }
+ 	bitmap_ind16 &screen_bitmap() { return m_screenbitmap; }
++	const bitmap_ind16 &render_bitmap() const { return m_renderbitmap; }
++	using auxiliary_filter = u8 (*)(u32, int, int);
++	using effect_filter = u8 (*)(u32, int);
++	void set_effect_filter(effect_filter filter) { m_effect_filter = filter; }
++	const bitmap_ind8 &effect_bitmap() const { return m_effect_bitmap; }
++	bitmap_ind16 &auxiliary_bitmap() { return m_auxiliary_bitmap; }
++	bool title_stars_present() const { return m_title_stars_present; }
++	void set_explosion_mode(bool enabled, bool wireframe) { m_explosion_mode = enabled; m_explosion_wireframe = wireframe; }
++	void set_reveal_sprite_edges(bool enabled) { m_reveal_sprite_edges = enabled; }
++	void set_auxiliary_wide(int width, int xoffset, auxiliary_filter filter)
++	{ m_auxiliary_width = width; m_auxiliary_xoffset = xoffset; m_auxiliary_filter = filter; }
+ 
+ protected:
+ 	namco_c355spr_device(const machine_config &mconfig, device_type type, const char *tag, device_t *owner, u32 clock = 0);
+@@ -118,6 +129,16 @@ protected:
+ 	u16 m_position[4];
+ 	std::unique_ptr<u16 []> m_spriteram[2];
+ 	bitmap_ind16 m_renderbitmap;
++	bitmap_ind16 m_auxiliary_bitmap;
++	bitmap_ind8 m_effect_bitmap;
++	effect_filter m_effect_filter = nullptr;
++	bool m_title_stars_present = false;
++	bool m_explosion_mode = false;
++	bool m_explosion_wireframe = false;
++	int m_current_sprite_tiles = 0;
++	auxiliary_filter m_auxiliary_filter = nullptr;
++	bool m_reveal_sprite_edges = false;
++	int m_auxiliary_width = 0, m_auxiliary_xoffset = 0;
+ 	bitmap_ind16 m_screenbitmap;
+ 
+ 	void build_sprite_list();
+diff --git a/src/osd/modules/lib/osdobj_common.cpp b/src/osd/modules/lib/osdobj_common.cpp
+index 9625bae6774..b90b12914c5 100644
+--- a/src/osd/modules/lib/osdobj_common.cpp
++++ b/src/osd/modules/lib/osdobj_common.cpp
+@@ -225,7 +225,11 @@ void osd_common_t::register_options()
+ 	REGISTER_MODULE(m_mod_man, FONT_NONE);
+ 
+ #if defined(SDLMAME_EMSCRIPTEN)
+-	REGISTER_MODULE(m_mod_man, RENDERER_SDL1); // don't bother trying to use video acceleration in browsers
++#if defined(SDLMAME_SDL3)
++	REGISTER_MODULE(m_mod_man, RENDERER_SDL3SOFT);
++#else
++	REGISTER_MODULE(m_mod_man, RENDERER_SDL1);
++#endif
+ #endif
+ #if defined(OSD_WINDOWS)
+ 	REGISTER_MODULE(m_mod_man, RENDERER_D3D); // this is only built for OSD=windows, there's no dummy stub
+@@ -234,7 +238,9 @@ void osd_common_t::register_options()
+ 	REGISTER_MODULE(m_mod_man, RENDERER_BGFX); // try BGFX before GDI on windows to get DirectX 10/11 acceleration
+ #endif
+ 	REGISTER_MODULE(m_mod_man, RENDERER_GDI); // GDI ahead of OpenGL as there's a chance Windows has no OpenGL
++#if !defined(SDLMAME_EMSCRIPTEN)
+ 	REGISTER_MODULE(m_mod_man, RENDERER_OPENGL);
++#endif
+ #if !defined(OSD_WINDOWS) && !defined(SDLMAME_WIN32)
+ 	REGISTER_MODULE(m_mod_man, RENDERER_BGFX); // try BGFX after OpenGL on other operating systems for now
+ #endif
+diff --git a/src/osd/modules/render/drawbgfx.cpp b/src/osd/modules/render/drawbgfx.cpp
+index 25a3d9b2ce9..7991991f5e5 100644
+--- a/src/osd/modules/render/drawbgfx.cpp
++++ b/src/osd/modules/render/drawbgfx.cpp
+@@ -61,6 +61,7 @@ extern void *GetOSWindow(void *wincontroller);
+ 
+ #include <bgfx/bgfx.h>
+ #include <bgfx/platform.h>
++#include "starblade-gpu-bgfx.h"
+ 
+ #include "imgui/imgui.h"
+ 
+@@ -668,6 +669,7 @@ renderer_bgfx::renderer_bgfx(osd_window &window, parent_module &parent)
+ 
+ renderer_bgfx::~renderer_bgfx()
+ {
++    m_starblade_gpu.reset();
+ 	// persist settings across fullscreen toggle
+ 	if (m_config)
+ 		m_config->get_first_child()->copy_into(m_module().persistent_settings());
+@@ -699,6 +701,7 @@ renderer_bgfx::~renderer_bgfx()
+ 
+ int renderer_bgfx::create()
+ {
++    m_starblade_gpu = std::make_unique<starblade_gpu_renderer>();
+ 	const osd_dim wdim = window().get_size_pixels();
+ 	m_dimensions = m_new_dimensions = wdim;
+ 
+@@ -990,7 +993,11 @@ void renderer_bgfx::render_textured_quad(render_primitive* prim, bgfx::Transient
+ 	uint16_t tex_height(prim->texture.height);
+ 
+ 	bgfx::TextureHandle texture = BGFX_INVALID_HANDLE;
+-	if (is_screen)
++    const bool gpu_screen = is_screen && m_starblade_gpu->matches(prim->texture.base);
++    const bool gpu_glow = !is_screen && m_starblade_gpu->matches_glow(prim->texture.base);
++    if (gpu_screen) texture = m_starblade_gpu->texture();
++    else if (gpu_glow) texture = m_starblade_gpu->glow_texture();
++	else if (is_screen)
+ 	{
+ 		const bgfx::Memory* mem = bgfx_util::mame_texture_data_to_bgra32(prim->flags & PRIMFLAG_TEXFORMAT_MASK
+ 			, tex_width, tex_height, prim->texture.rowpixels, prim->texture.palette, prim->texture.base);
+@@ -1019,7 +1026,7 @@ void renderer_bgfx::render_textured_quad(render_primitive* prim, bgfx::Transient
+ 
+ 	effects[blend]->submit(m_ortho_view->get_index());
+ 
+-	if (is_screen)
++	if (is_screen && !gpu_screen)
+ 	{
+ 		bgfx::destroy(texture);
+ 	}
+@@ -1250,7 +1257,10 @@ int renderer_bgfx::draw(int update)
+ 	}
+ 
+ 	window().m_primlist->acquire_lock();
+-	uint32_t num_screens = m_chains->update_screen_textures(s_current_view, window().m_primlist->first(), window());
++    m_starblade_gpu->prepare(s_current_view, window().m_primlist->first(), (!strcmp(window().machine().system().name, "starblad") || !strcmp(window().machine().system().name, "starbladj") || !strcmp(window().machine().system().name, "solvalou")));
++    bool gpu_screen = false;
++    for (auto *p = window().m_primlist->first(); p; p = p->next()) gpu_screen |= m_starblade_gpu->matches(p->texture.base);
++	uint32_t num_screens = gpu_screen ? 0 : m_chains->update_screen_textures(s_current_view, window().m_primlist->first(), window());
+ 	window().m_primlist->release_lock();
+ 
+ 	bool skip_frame = update_dimensions();
+@@ -1389,7 +1399,7 @@ int renderer_bgfx::draw(int update)
+ 
+ 	if (window().index() == osd_common_t::window_list().size() - 1)
+ 	{
+-		bgfx::frame();
++		m_starblade_gpu->advanced(bgfx::frame());
+ 	}
+ 
+ 	return 0;
+@@ -1451,7 +1461,7 @@ bool renderer_bgfx::update_dimensions()
+ 		bgfx::setViewClear(s_current_view, BGFX_CLEAR_COLOR | BGFX_CLEAR_DEPTH, 0x000000ff, 1.0f, 0);
+ 		bgfx::setViewMode(s_current_view, bgfx::ViewMode::Sequential);
+ 		bgfx::touch(s_current_view);
+-		bgfx::frame();
++		m_starblade_gpu->advanced(bgfx::frame());
+ 		return true;
+ 	}
+ 	return false;
+@@ -1544,7 +1554,7 @@ renderer_bgfx::buffer_status renderer_bgfx::buffer_primitives(bool atlas_valid,
+ 							return BUFFER_PRE_FLUSH;
+ 						}
+ 
+-						if (PRIMFLAG_GET_SCREENTEX((*prim)->flags) && m_chains->has_applicable_chain(screen))
++						if (PRIMFLAG_GET_SCREENTEX((*prim)->flags) && !m_starblade_gpu->matches((*prim)->texture.base) && m_chains->has_applicable_chain(screen))
+ 						{
+ #if SCENE_VIEW
+ 							setup_view(s_current_view, true);
+diff --git a/src/osd/modules/render/drawbgfx.h b/src/osd/modules/render/drawbgfx.h
+index 27f84edafc5..3fb5f343dc8 100644
+--- a/src/osd/modules/render/drawbgfx.h
++++ b/src/osd/modules/render/drawbgfx.h
+@@ -35,6 +35,8 @@ class osd_options;
+ class avi_write;
+ 
+ /* renderer_bgfx is the information about BGFX for the current screen */
++class starblade_gpu_renderer;
++
+ class renderer_bgfx : public osd_renderer, public slider_dirty_notifier
+ {
+ public:
+@@ -117,6 +119,7 @@ private:
+ 	void load_config(util::xml::data_node const &parentnode);
+ 	void save_config(util::xml::data_node &parentnode);
+ 
++	std::unique_ptr<starblade_gpu_renderer> m_starblade_gpu;
+ 	parent_module_holder m_module; // keep this where it will be destructed last
+ 
+ 	bgfx_target *m_framebuffer;
+diff --git a/src/osd/modules/render/drawsdl3soft.cpp b/src/osd/modules/render/drawsdl3soft.cpp
+index 53d594e8a09..583f5e87d04 100644
+--- a/src/osd/modules/render/drawsdl3soft.cpp
++++ b/src/osd/modules/render/drawsdl3soft.cpp
+@@ -27,6 +27,8 @@
+ #include "emucore.h"
+ #include "render.h"
+ #include "rendersw.hxx"
++#include "starblade-gpu-web.h"
++#include "polygon-gpu-web.h"
+ 
+ #include <SDL3/SDL.h>
+ 
+@@ -257,6 +259,13 @@ void renderer_sdl1::destroy_all_textures()
+ 
+ int renderer_sdl1::draw(int update)
+ {
++#ifdef SDLMAME_EMSCRIPTEN
++    window().m_primlist->acquire_lock();
++    const auto web_size = window().get_size_pixels();
++    const bool web_presented = polygon_web_draw(*window().m_primlist, window().machine()) || starblade_web_draw(*window().m_primlist, web_size.width(), web_size.height());
++    window().m_primlist->release_lock();
++    if (web_presented) { m_last_hofs = m_last_vofs = 0; return 0; }
++#endif
+ 	uint8_t *surfptr;
+ 	int32_t pitch;
+ 	Uint32 rmask, gmask, bmask;
+diff --git a/src/osd/modules/sound/mmdevice_helpers.cpp b/src/osd/modules/sound/mmdevice_helpers.cpp
+index 6f4bd043f50..c0e40036bd3 100644
+--- a/src/osd/modules/sound/mmdevice_helpers.cpp
++++ b/src/osd/modules/sound/mmdevice_helpers.cpp
+@@ -1,5 +1,8 @@
+ // license:BSD-3-Clause
+ // copyright-holders:Vas Crabb
++#if defined(_WIN32)
++#include <initguid.h>
++#endif
+ #include "mmdevice_helpers.h"
+ 
+ #if defined(_WIN32)
+diff --git a/src/osd/sdl3/osdsdl.cpp b/src/osd/sdl3/osdsdl.cpp
+index 527e20659a5..5335a58c08c 100644
+--- a/src/osd/sdl3/osdsdl.cpp
++++ b/src/osd/sdl3/osdsdl.cpp
+@@ -2,6 +2,9 @@
+ // copyright-holders:Olivier Galibert, R. Belmont
+ 
+ #include "osdsdl.h"
++#if defined(SDLMAME_MACOSX)
++#include <Carbon/Carbon.h>
++#endif
+ 
+ #include "modules/input/input_common.h"
+ #include "modules/lib/osdlib.h"
+@@ -790,6 +793,19 @@ void sdl_osd_interface::process_window_event(SDL_Event const &event)
+ 
+ 	case SDL_EVENT_WINDOW_FOCUS_GAINED:
+ 		m_focus_window = window;
++#if defined(SDLMAME_MACOSX)
++        if (!std::strcmp(machine().system().name, "starblad"))
++        {
++            TISInputSourceRef source = TISCopyCurrentASCIICapableKeyboardInputSource();
++            if (source)
++            {
++                const OSStatus status = TISSelectInputSource(source);
++                if (status != noErr)
++                    osd_printf_warning("StarBlade: could not select English input source (%d)\n", int(status));
++                CFRelease(source);
++            }
++        }
++#endif
+ 		window->target()->push_window_focus_event();
+ 		break;
+ 
+diff --git a/src/osd/sdl3/sdlmain.cpp b/src/osd/sdl3/sdlmain.cpp
+index 6bc06608616..288105a23cc 100644
+--- a/src/osd/sdl3/sdlmain.cpp
++++ b/src/osd/sdl3/sdlmain.cpp
+@@ -15,6 +15,9 @@
+ 
+ // MAME headers
+ #include "emu.h"
++#ifdef __EMSCRIPTEN__
++#include "polygon-web-display.h"
++#endif
+ #include "emuopts.h"
+ #include "main.h"
+ #include "video.h"
+@@ -70,6 +73,9 @@ int sdl_entered_debugger;
+ 
+ int main(int argc, char** argv)
+ {
++#ifdef __EMSCRIPTEN__
++    polygon_web_display_init();
++#endif
+ 	std::vector<std::string> args = osd_get_command_line(argc, argv);
+ 	int res = 0;
+ 
+diff --git a/src/osd/sdl3/window.cpp b/src/osd/sdl3/window.cpp
+index 21fd2db3f91..bfb39803246 100644
+--- a/src/osd/sdl3/window.cpp
++++ b/src/osd/sdl3/window.cpp
+@@ -862,8 +862,13 @@ int sdl_window_info::complete_create()
+ 		SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_Y_NUMBER, work.top() + (work.height() - temp.height()) / 2);
+ 		SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_WIDTH_NUMBER, temp.width());
+ 		SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, temp.height());
++#if defined(SDLMAME_EMSCRIPTEN)
++		SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, false);
++		SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN, false);
++#else
+ 		SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, true);
+ 		SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN, true);
++#endif
+ 	}
+ 
+ 	if (fullscreen())

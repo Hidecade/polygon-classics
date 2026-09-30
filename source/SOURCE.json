@@ -1,0 +1,8 @@
+{
+  "upstream": "mamedev/mame",
+  "revision": "9d6e9c51c18dd7849e3265b89d6dfd63e1f7dcfb",
+  "archive": "mame-web-source-20261001.2.tar.gz",
+  "sha256": "1543e0429c2dd8e8b2dcf209c4733bd6bb05a408c141041808d6c25fb872e5b8",
+  "emscripten": "6.0.2",
+  "release": "20261001.2"
+}

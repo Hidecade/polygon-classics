@@ -1,0 +1,7 @@
+source/mame/
+node_modules/
+.DS_Store
+*.log
+*.zip
+*.nv
+.env*

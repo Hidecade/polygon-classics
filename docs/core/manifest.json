@@ -1,0 +1,13 @@
+{
+  "size": 49470786,
+  "sha256": "a082093bfc250d5fc04268029d929648156983874669bfd361f24de91a5d3eee",
+  "gzip": "starblade.wasm-gzip.bin",
+  "parts": [
+    "starblade.wasm-part-0.bin",
+    "starblade.wasm-part-1.bin",
+    "starblade.wasm-part-2.bin",
+    "starblade.wasm-part-3.bin",
+    "starblade.wasm-part-4.bin",
+    "starblade.wasm-part-5.bin"
+  ]
+}
